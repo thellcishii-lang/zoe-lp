@@ -215,7 +215,13 @@ async function sendQuestionsFileTool(input){
 }
 
 function buildSetupSystemPrompt(){
+  const emailNote = currentCustomer.email
+    ? `お客様の連絡先メールアドレスは ${currentCustomer.email} です。send_emailやsend_questions_fileを使う際は、改めて聞き直さずこのアドレス宛に送ってください。`
+    : `お客様の連絡先メールアドレスは登録されていません。send_emailやsend_questions_fileを使う前に、必ず会話の中でメールアドレスを確認してください。`;
+
   return `あなたは「Zoe(ゾーイ)」という対話型AIで、今は「設定モード」で動いています。相手はthe.chatBOTを契約したお客様(${currentCustomer.customerName || '契約者様'})で、これから自社サイトに設置する本番用chatBOTのFAQを、あなたと一緒に育てていきます。
+
+${emailNote}
 
 # 全体の流れ
 
@@ -363,7 +369,7 @@ const TEST_SCENARIOS = {
   test002: {
     label: "不明点6件以上→ファイル送付するか",
     history: [
-      { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブン、真空パック機、スチームコンベクションなど、合計40アイテムほど扱ってます。詳細は追って送ります。' },
+      { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブン、真空パック機、スチームコンベクションなど、合計40アイテムほど扱ってます。詳細は追って送ります。連絡先メールはtest002@example.comです。' },
       { role: 'assistant', content: '承知いたしました。40アイテムと点数が多いので、まずは主要な商品ラインナップから伺えればと思います。それぞれの価格帯、保証期間、納期の目安について教えていただけますか?' },
       { role: 'user', content: '価格は機種によって様々で一律には言えません。保証は基本1年ですが機種によって違います。納期も国内在庫と海外発注で全然違います。カタログのPDFを別途送りますので、それを見て判断してください。' }
     ]
@@ -371,7 +377,7 @@ const TEST_SCENARIOS = {
   test003: {
     label: "再確認後も不明点が残る→作り直すか進めるかの選択",
     history: [
-      { role: 'user', content: '当社はリフォーム会社です。水回り、外壁塗装、内装、屋根工事が主な事業です。' },
+      { role: 'user', content: '当社はリフォーム会社です。水回り、外壁塗装、内装、屋根工事が主な事業です。連絡先メールはtest003@example.comです。' },
       { role: 'assistant', content: 'ありがとうございます。それぞれの価格帯や工期の目安について、もう少し詳しく伺えますか?' },
       { role: 'user', content: 'すみません、正直そのあたりは現場や状況次第で本当にまちまちで、こちらでも一概には言えないんです…。' },
       { role: 'assistant', content: 'かしこまりました。価格・工期以外の部分で、もう少し具体的に伺いたい点がいくつかあります。①対応エリアはどこまでですか?②保証やアフター対応の内容は?③見積もりは無料ですか?④施工実績年数は?⑤自社施工か下請けか?' },
