@@ -277,8 +277,13 @@
   <section id="contact">
     <div class="eyebrow">お問い合わせ</div>
     <h2>まずは、Zoeと話してみてください。</h2>
-    <div class="section-lede">どんな受け答えをさせたいか、今お困りのことをZoeにお聞かせください。</div>
-    <a href="zoe-chat.html" class="btn btn-amber">Zoeに相談する →</a>
+    <div class="section-lede">会社名・連絡先を入れておくと、Zoeとの会話がスムーズに進みます。入力なしでもすぐに試せます。</div>
+    <div class="grid2">
+      <input id="inqName" placeholder="会社名・お名前（任意）">
+      <input id="inqEmail" type="email" placeholder="返信先メールアドレス（任意）">
+    </div>
+    <textarea id="inqMessage" rows="4" placeholder="ご相談内容（任意）"></textarea>
+    <a href="zoe-chat.html" class="btn btn-amber" id="btnGoToChat">Zoeに相談する →</a>
   </section>
 
   <footer>the.chatBOT — Zoe</footer>
@@ -293,6 +298,22 @@ function showToast(msg){
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
+
+document.getElementById('btnGoToChat').addEventListener('click', function(ev){
+  const name = document.getElementById('inqName').value.trim();
+  const email = document.getElementById('inqEmail').value.trim();
+  const message = document.getElementById('inqMessage').value.trim();
+
+  if(name || email || message){
+    ev.preventDefault();
+    const params = new URLSearchParams();
+    if(name) params.set('name', name);
+    if(email) params.set('email', email);
+    if(message) params.set('msg', message);
+    window.location.href = 'zoe-chat.html?' + params.toString();
+  }
+  // 何も入力されていなければ、通常のリンク(zoe-chat.html)にそのまま遷移する
+});
 </script>
 </body>
 </html>
