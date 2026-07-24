@@ -199,7 +199,12 @@ const SYSTEM_PROMPT = `あなたは「Zoe(ゾーイ)」という、the.chatBOT�
 2. 欲しい機能・困っていること(問い合わせ対応の負担、対応時間の制約、クロージングまで任せたいなど)を聞く
 3. ヒアリング内容をもとに、Zoeがどう役立てるか具体的に説明する
 4. 相手が興味を示したら、料金(月額30万円)を伝える
-5. 最後に、会社名・お名前・連絡先(メール)を聞く。メールアドレスを教えてもらえたら、send_emailツールを使って、相談内容のまとめと「担当者より改めてご連絡します」という旨のメールを本人宛に送信する
+5. 相手が「導入したい」「申し込みたい」等、はっきりと前向きな意思を示した場合(=クロージング成立)は、会社名・お名前・連絡先(メール)を聞いた上で、まずcreate_customerツールで設定用ID・パスワードを発行し、その後send_emailツールで「お申し込みありがとうございます」という旨と、発行されたID・パスワード・設定画面URLを本人宛に送信する
+6. 前向きな意思がまだ明確でない場合(単なる問い合わせ・相談段階)は、会社名・お名前・連絡先(メール)を聞いて、send_emailツールで相談内容のまとめと「担当者より改めてご連絡します」という旨のメールを送るだけに留める(create_customerは使わない)
+
+# create_customerツールについて
+- 明確な導入意思(クロージング)が確認できた場合のみ使う。単なる問い合わせ段階では絶対に使わない
+- 発行されたID・パスワードは、必ずsend_emailツールで本人に送る(チャット画面上には表示しない)
 
 # send_emailツールについて
 - メールアドレスを聞き出せた場合のみ使用できる
@@ -261,6 +266,35 @@ function setQuickReplies(options){
   });
 }
 
+const CREATE_CUSTOMER_TOOL = {
+  name: "create_customer",
+  description: "クロージング(お客様が導入に前向きな意思を示した)段階で、そのお客様専用の設定用ID・パスワードを発行する。発行後は、そのIDとパスワード、設定画面のURLをメールで送るのに使う。まだ導入を決めていない段階では使わない。",
+  input_schema: {
+    type: "object",
+    properties: {
+      customerName: { type: "string", description: "会社名またはお客様のお名前" }
+    },
+    required: ["customerName"]
+  }
+};
+
+async function createCustomerTool(input){
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'create', customerName: input.customerName })
+    });
+    const data = await res.json();
+    if(res.ok && data.id){
+      return `発行成功。ID: ${data.id} / パスワード: ${data.password} / 設定画面URL: https://the-chatbot.com/zoe-setup.html`;
+    }
+    return "発行に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "発行中にエラーが発生しました: " + e.message;
+  }
+}
+
 const EMAIL_TOOL = {
   name: "send_email",
   description: "訪問者にメールを送信する。クロージング時に申し込み案内を送る、相談内容のまとめを送る、担当者への取り次ぎが必要な場合などに使う。訪問者からメールアドレスを聞き出せた場合のみ使用可能。",
@@ -304,15 +338,19 @@ async function callZoe(messages){
         max_tokens: 1000,
         system: SYSTEM_PROMPT,
         messages: currentMessages,
-        tools: [EMAIL_TOOL]
+        tools: [EMAIL_TOOL, CREATE_CUSTOMER_TOOL]
       })
     });
     const data = await response.json();
 
     const toolUseBlock = data.content.find(b => b.type === 'tool_use');
     if(toolUseBlock){
-      // Zoeがメール送信を要求してきた場合、実行してから会話を続ける
-      const toolResultText = await sendEmailTool(toolUseBlock.input);
+      let toolResultText;
+      if(toolUseBlock.name === 'create_customer'){
+        toolResultText = await createCustomerTool(toolUseBlock.input);
+      } else {
+        toolResultText = await sendEmailTool(toolUseBlock.input);
+      }
       currentMessages = currentMessages.concat([
         { role: 'assistant', content: data.content },
         { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: toolResultText }] }
