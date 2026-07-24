@@ -405,22 +405,27 @@ function downloadTextFile(filename, content){
 
 async function runDownloadTest(){
   testMode = true;
-  addMessage('bot', '[テスト: 確認事項リストのダウンロードテスト]\n不明点が6件以上ある想定で進めます。');
+  addMessage('bot', '[テスト: 確認事項リストのダウンロードテスト]\nZoeの判断を挟まず、ダウンロード機構だけを直接検証します。');
 
-  conversationHistory = [
-    { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブンなど40アイテムほど扱ってます。' },
-    { role: 'assistant', content: '承知いたしました。まずは主要な商品ラインナップについて、価格帯・保証期間・納期の目安を教えていただけますか?' },
-    { role: 'user', content: '価格は機種によって様々で一律には言えません。保証も機種ごとに違いますし、納期も国内在庫と海外発注で全然違います。' }
-  ];
+  // Zoeにツール呼び出しを判断させず、固定のダミー確認事項(6件)で
+  // sendQuestionsFileTool() を直接呼び出し、ダウンロード機能自体の動作を検証する
+  const dummyInput = {
+    to: (currentCustomer && currentCustomer.email) || 'test@example.com',
+    title: 'テスト用 確認事項リスト',
+    questions: [
+      '冷蔵庫シリーズの型番ごとの保証期間を教えてください',
+      'フライヤーの納期は国内在庫と海外発注でそれぞれ何日程度ですか',
+      'シンクのサイズ展開は何種類ありますか',
+      '食洗機の設置工事は御社で対応していますか',
+      '製氷機のメンテナンス契約はありますか',
+      'コンベクションオーブンの電源仕様(単相/三相)を教えてください'
+    ]
+  };
 
-  showTyping();
   try{
-    const result = await callZoe(conversationHistory);
-    hideTyping();
-    addMessage('bot', result.text);
-    conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
+    const result = await sendQuestionsFileTool(dummyInput);
+    addMessage('bot', result);
   }catch(e){
-    hideTyping();
     addMessage('bot', 'テスト実行中にエラーが発生しました: ' + e.message);
   }
   testMode = false;
