@@ -277,12 +277,19 @@
   <section id="contact">
     <div class="eyebrow">お問い合わせ</div>
     <h2>まずは、Zoeと話してみてください。</h2>
-    <div class="section-lede">会社名・連絡先を入れておくと、Zoeとの会話がスムーズに進みます。入力なしでもすぐに試せます。</div>
+    <div class="section-lede">会社名・ご担当者様名・業種を入れておくと、Zoeとの会話がスムーズに進みます。入力なしでもすぐに試せます。</div>
     <div class="grid2">
-      <input id="inqName" placeholder="会社名・お名前（任意）">
+      <input id="inqCompany" placeholder="会社名（任意）">
+      <input id="inqPerson" placeholder="ご担当者様名（任意）">
+    </div>
+    <div class="grid2" style="margin-top:12px;">
+      <input id="inqIndustry" placeholder="業種（任意）">
       <input id="inqEmail" type="email" placeholder="返信先メールアドレス（任意）">
     </div>
-    <textarea id="inqMessage" rows="4" placeholder="ご相談内容（任意）"></textarea>
+    <textarea id="inqMessage" rows="4" placeholder="ご相談内容（任意）" style="margin-top:12px;"></textarea>
+    <div style="font-size:12px;color:var(--text-dim);margin:-6px 0 14px;line-height:1.7;">
+      詳細を入れて頂くと会話がスムーズに始まり、貴重なお時間を無駄にしません。
+    </div>
     <a href="zoe-chat.html" class="btn btn-amber" id="btnGoToChat">Zoeに相談する →</a>
   </section>
 
@@ -300,14 +307,18 @@ function showToast(msg){
 }
 
 document.getElementById('btnGoToChat').addEventListener('click', function(ev){
-  const name = document.getElementById('inqName').value.trim();
+  const company = document.getElementById('inqCompany').value.trim();
+  const person = document.getElementById('inqPerson').value.trim();
+  const industry = document.getElementById('inqIndustry').value.trim();
   const email = document.getElementById('inqEmail').value.trim();
   const message = document.getElementById('inqMessage').value.trim();
 
-  if(name || email || message){
+  if(company || person || industry || email || message){
     ev.preventDefault();
     const params = new URLSearchParams();
-    if(name) params.set('name', name);
+    if(company) params.set('company', company);
+    if(person) params.set('person', person);
+    if(industry) params.set('industry', industry);
     if(email) params.set('email', email);
     if(message) params.set('msg', message);
     window.location.href = 'zoe-chat.html?' + params.toString();
