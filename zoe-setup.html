@@ -186,10 +186,18 @@ async function callZoe(messages){
   return textBlock ? textBlock.text : '(応答の取得に失敗しました)';
 }
 
-function addMessage(role, text){
+function addMessage(role, text, imageDataUrl){
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-  div.textContent = text;
+  if(imageDataUrl){
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.cssText = 'max-width:100%;max-height:220px;border-radius:8px;display:block;margin-bottom:6px;';
+    div.appendChild(img);
+  }
+  const textNode = document.createElement('div');
+  textNode.textContent = text;
+  div.appendChild(textNode);
   chatArea.appendChild(div);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -245,8 +253,11 @@ async function sendMessage(text){
   isWaitingForResponse = true;
   sendBtn.disabled = true;
 
-  const displayText = text || (attachedFile ? `📎 ${attachedFile.name} を送信しました` : '');
-  addMessage('user', displayText);
+  const displayText = text || (attachedFile ? `📎 ${attachedFile.name}` : '');
+  const thumbUrl = (attachedFile && attachedFile.kind === 'image')
+    ? `data:${attachedFile.mediaType};base64,${attachedFile.base64}`
+    : null;
+  addMessage('user', displayText, thumbUrl);
 
   if(attachedFile){
     const contentBlocks = [];
