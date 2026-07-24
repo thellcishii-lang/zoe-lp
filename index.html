@@ -221,7 +221,7 @@
       <div class="chat-line bot">「良い感じ」というと、見た目の雰囲気を変えたいということですか?それとも機能を増やしたい、というニュアンスに近いですか?</div>
     </div>
     <div class="cta-row" style="margin-top:20px;justify-content:center;">
-      <a href="#contact" class="btn btn-amber">まずはZoeと会話してみる →</a>
+      <a href="zoe-chat.html" class="btn btn-amber">まずはZoeと会話してみる →</a>
     </div>
   </section>
 
@@ -277,13 +277,8 @@
   <section id="contact">
     <div class="eyebrow">お問い合わせ</div>
     <h2>まずは、Zoeと話してみてください。</h2>
-    <div class="section-lede">どんな受け答えをさせたいか、今お困りのことをお聞かせください。</div>
-    <div class="grid2">
-      <input id="inqName" placeholder="会社名・お名前">
-      <input id="inqEmail" type="email" placeholder="返信先メールアドレス">
-    </div>
-    <textarea id="inqMessage" rows="4" placeholder="ご相談内容"></textarea>
-    <button class="btn btn-amber" id="btnSendInquiry">この内容でZoeに相談する</button>
+    <div class="section-lede">どんな受け答えをさせたいか、今お困りのことをZoeにお聞かせください。</div>
+    <a href="zoe-chat.html" class="btn btn-amber">Zoeに相談する →</a>
   </section>
 
   <footer>the.chatBOT — Zoe</footer>
@@ -298,25 +293,6 @@ function showToast(msg){
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
-
-function sendInquiry(){
-  const name = document.getElementById('inqName').value.trim();
-  const email = document.getElementById('inqEmail').value.trim();
-  const message = document.getElementById('inqMessage').value.trim();
-  if(!name || !message){ showToast('お名前とご相談内容を入力してください'); return; }
-
-  const CONTACT_ADDRESS = 'the.system.tool@gmail.com';
-  const subject = encodeURIComponent('Zoe(the.chatBOT) のご相談（' + name + '様）');
-  const body = encodeURIComponent(
-    '会社名・お名前: ' + name + '\n' +
-    '返信先メール: ' + (email || '未入力') + '\n\n' +
-    'ご相談内容:\n' + message
-  );
-  window.location.href = `mailto:${CONTACT_ADDRESS}?subject=${subject}&body=${body}`;
-  showToast('メールソフトが開きます');
-}
-
-document.getElementById('btnSendInquiry').addEventListener('click', sendInquiry);
 </script>
 </body>
 </html>
