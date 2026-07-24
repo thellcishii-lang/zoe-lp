@@ -81,7 +81,18 @@
   .typing .d:nth-child(3){animation-delay:0.3s;}
   @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:0.5;}30%{transform:translateY(-4px);opacity:1;}}
 
-  #inputArea{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);flex-shrink:0;max-width:720px;width:100%;margin:0 auto;box-sizing:border-box;}
+  #inputArea{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);flex-shrink:0;max-width:720px;width:100%;margin:0 auto;box-sizing:border-box;flex-direction:column;}
+  #inputRow{display:flex;gap:10px;}
+  #attachBtn{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer;flex-shrink:0;touch-action:manipulation;
+  }
+  #filePreview{
+    display:none;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--accent);
+    border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--text-dim);margin-bottom:8px;
+  }
+  #filePreview .name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #filePreview .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 4px;}
   #userInput{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;}
   #userInput:focus{border-color:var(--accent);}
   #sendBtn{background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;touch-action:manipulation;flex-shrink:0;}
@@ -114,8 +125,16 @@
   </header>
   <div id="chatArea"></div>
   <div id="inputArea">
-    <textarea id="userInput" rows="1" placeholder="メッセージを入力..."></textarea>
-    <button id="sendBtn">送信</button>
+    <div id="filePreview">
+      <span class="name" id="fileName"></span>
+      <span class="remove" id="fileRemove">×</span>
+    </div>
+    <div id="inputRow">
+      <button id="attachBtn" title="画像・PDFを添付">📎</button>
+      <input type="file" id="fileInput" accept=".pdf,image/*" style="display:none;">
+      <textarea id="userInput" rows="1" placeholder="メッセージを入力..."></textarea>
+      <button id="sendBtn">送信</button>
+    </div>
   </div>
 </div>
 
@@ -140,6 +159,10 @@ function buildSetupSystemPrompt(){
 3. 草案をお客様に見せて、間違っている点や、独自すぎてあなたが誤解しそうな部分を確認し、修正する
 4. 確定したFAQを土台に、あなた自身がさらに想定される質問を考えて、お客様に確認しながら追加していく
 5. 同じような質問ばかりになり、新しい切り口が出てこなくなってきたら「そろそろFAQの内容が出尽くしたようです。これ以降は運用開始後の毎月のブラッシュアップで対応していきましょう」と伝えて区切りをつける
+
+# ファイル添付について
+- お客様は画像やPDF(商品リスト、カタログ、マニュアルなど)を直接送ってくることがある。内容をよく読み取り、そこから読み取れる商品名・仕様・価格などを踏まえてFAQの叩き台に反映する
+- 添付内容だけでは分からない部分は、遠慮なく質問する
 
 # トーンと制約
 - 1回の返信は3〜6文程度に収める
@@ -188,7 +211,14 @@ async function saveProgress(){
   // これまでの会話をfaqDraftとしてそのまま保存しておく(簡易版:あとで整形して使う想定)
   const faqDraft = conversationHistory.map(m => {
     const speaker = m.role === 'user' ? 'お客様' : 'Zoe';
-    const content = typeof m.content === 'string' ? m.content : '';
+    let content = '';
+    if(typeof m.content === 'string'){
+      content = m.content;
+    } else if(Array.isArray(m.content)){
+      const textBlock = m.content.find(b => b.type === 'text');
+      const fileBlock = m.content.find(b => b.type === 'image' || b.type === 'document');
+      content = (fileBlock ? '[添付ファイルあり] ' : '') + (textBlock ? textBlock.text : '');
+    }
     return `${speaker}: ${content}`;
   }).join('\n');
 
@@ -208,14 +238,30 @@ async function saveProgress(){
   }
 }
 
+let attachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
+
 async function sendMessage(text){
-  if(!text || isWaitingForResponse) return;
+  if((!text && !attachedFile) || isWaitingForResponse) return;
   isWaitingForResponse = true;
   sendBtn.disabled = true;
 
-  addMessage('user', text);
-  conversationHistory.push({role:'user', content: text});
+  const displayText = text || (attachedFile ? `📎 ${attachedFile.name} を送信しました` : '');
+  addMessage('user', displayText);
+
+  if(attachedFile){
+    const contentBlocks = [];
+    contentBlocks.push({
+      type: attachedFile.kind,
+      source: { type: 'base64', media_type: attachedFile.mediaType, data: attachedFile.base64 }
+    });
+    contentBlocks.push({ type: 'text', text: text || 'このファイルの内容を確認してください。' });
+    conversationHistory.push({role:'user', content: contentBlocks});
+  } else {
+    conversationHistory.push({role:'user', content: text});
+  }
+
   userInput.value = '';
+  clearAttachedFile();
   autoResize();
 
   showTyping();
@@ -232,6 +278,49 @@ async function sendMessage(text){
   isWaitingForResponse = false;
   sendBtn.disabled = false;
 }
+
+function clearAttachedFile(){
+  attachedFile = null;
+  document.getElementById('filePreview').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+document.getElementById('attachBtn').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const isPdf = file.type === 'application/pdf';
+  const isImage = file.type.startsWith('image/');
+  if(!isPdf && !isImage){
+    alert('画像またはPDFファイルを選択してください');
+    return;
+  }
+  // サイズ上限の目安(base64化するとサイズが約1.33倍になるため、余裕を見て10MBまでとする)
+  if(file.size > 10 * 1024 * 1024){
+    alert('ファイルサイズが大きすぎます(10MBまで)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    attachedFile = {
+      name: file.name,
+      mediaType: file.type,
+      base64: base64,
+      kind: isPdf ? 'document' : 'image'
+    };
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('filePreview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('fileRemove').addEventListener('click', clearAttachedFile);
 
 function autoResize(){
   userInput.style.height = 'auto';
