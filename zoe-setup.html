@@ -121,8 +121,12 @@
         <div class="header-sub" id="headerId"></div>
       </div>
     </div>
-    <div class="status-badge" id="statusBadge">setup</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="testMenuBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;">🧪 テスト</button>
+      <div class="status-badge" id="statusBadge">setup</div>
+    </div>
   </header>
+  <div id="testMenuPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;"></div>
   <div id="chatArea"></div>
   <div id="inputArea">
     <div id="filePreview">
@@ -347,8 +351,124 @@ async function saveProgress(){
 
 let attachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
 
+const TEST_SCENARIOS = {
+  test001: {
+    label: "不明点5件以内→チャットで質問するか",
+    history: [
+      { role: 'user', content: '当店は美容室です。カット・カラー・パーマ・トリートメントをメインに扱ってます。カットは4,500円、カラーは7,000円からです。' },
+      { role: 'assistant', content: '承知いたしました。カット・カラー・パーマ・トリートメントの4メニューですね。FAQの叩き台を作るために、いくつか確認させてください。①パーマの料金帯は?②トリートメントは単品でも可能ですか?③初回来店の割引などはありますか?' },
+      { role: 'user', content: 'パーマは8,000円から、トリートメントは単品可、初回割引は特にありません。これでFAQの叩き台をお願いします。' }
+    ]
+  },
+  test002: {
+    label: "不明点6件以上→ファイル送付するか",
+    history: [
+      { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブン、真空パック機、スチームコンベクションなど、合計40アイテムほど扱ってます。詳細は追って送ります。' },
+      { role: 'assistant', content: '承知いたしました。40アイテムと点数が多いので、まずは主要な商品ラインナップから伺えればと思います。それぞれの価格帯、保証期間、納期の目安について教えていただけますか?' },
+      { role: 'user', content: '価格は機種によって様々で一律には言えません。保証は基本1年ですが機種によって違います。納期も国内在庫と海外発注で全然違います。カタログのPDFを別途送りますので、それを見て判断してください。' }
+    ]
+  },
+  test003: {
+    label: "再確認後も不明点が残る→作り直すか進めるかの選択",
+    history: [
+      { role: 'user', content: '当社はリフォーム会社です。水回り、外壁塗装、内装、屋根工事が主な事業です。' },
+      { role: 'assistant', content: 'ありがとうございます。それぞれの価格帯や工期の目安について、もう少し詳しく伺えますか?' },
+      { role: 'user', content: 'すみません、正直そのあたりは現場や状況次第で本当にまちまちで、こちらでも一概には言えないんです…。' },
+      { role: 'assistant', content: 'かしこまりました。価格・工期以外の部分で、もう少し具体的に伺いたい点がいくつかあります。①対応エリアはどこまでですか?②保証やアフター対応の内容は?③見積もりは無料ですか?④施工実績年数は?⑤自社施工か下請けか?' },
+      { role: 'user', content: '対応エリアは県内全域、保証は10年、見積もり無料、実績15年、自社施工です。ただ価格帯についてはやっぱり明確にはお伝えできません。' }
+    ]
+  },
+  test004: {
+    label: "FAQ拡充が飽和→運用開始の是非を問うか",
+    history: [
+      { role: 'user', content: 'ここまでのFAQ、かなり充実してきたと思います。他に何か質問ありますか?' },
+      { role: 'assistant', content: 'これまでのやり取りで、料金・工期・対応エリア・保証内容・見積もりの流れなど、一通り網羅できたと思います。想定できる質問はほぼ出尽くした印象です。' },
+      { role: 'user', content: 'はい、これ以上は特に無さそうです。' }
+    ]
+  },
+  test005: {
+    label: "運用開始の合意後→納品スクリプトが動くか",
+    history: [
+      { role: 'user', content: 'まずはこの形でサイトにアップロードし、運用開始でお願いします。連絡先メールはtest@example.comです。' }
+    ]
+  }
+};
+
+function isTestCode(text){
+  return /^test\d{3}$/i.test((text || '').trim());
+}
+
+async function runTestScenario(code){
+  const scenario = TEST_SCENARIOS[code.toLowerCase()];
+  if(!scenario){
+    addMessage('bot', `不明なテストコードです。使えるコード: ${Object.keys(TEST_SCENARIOS).join(', ')}`);
+    return;
+  }
+  chatArea.innerHTML = '';
+  addMessage('bot', `[テストモード: ${scenario.label}]`);
+  scenario.history.forEach(m => {
+    if(typeof m.content === 'string'){
+      addMessage(m.role === 'user' ? 'user' : 'bot', m.content);
+    }
+  });
+  conversationHistory = scenario.history.slice();
+
+  showTyping();
+  try{
+    const result = await callZoe(conversationHistory);
+    hideTyping();
+    addMessage('bot', result.text);
+    conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
+    saveProgress();
+  }catch(e){
+    hideTyping();
+    addMessage('bot', 'テストシナリオの実行中にエラーが発生しました: ' + e.message);
+  }
+}
+
+function renderTestMenu(){
+  const panel = document.getElementById('testMenuPanel');
+  panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">テストしたい場面をタップしてください</div>';
+  Object.keys(TEST_SCENARIOS).forEach(code => {
+    const btn = document.createElement('button');
+    btn.textContent = `${code}: ${TEST_SCENARIOS[code].label}`;
+    btn.style.cssText = 'display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:6px;cursor:pointer;';
+    btn.addEventListener('click', async () => {
+      document.getElementById('testMenuPanel').style.display = 'none';
+      isWaitingForResponse = true;
+      sendBtn.disabled = true;
+      await runTestScenario(code);
+      isWaitingForResponse = false;
+      sendBtn.disabled = false;
+    });
+    panel.appendChild(btn);
+  });
+}
+
+document.getElementById('testMenuBtn').addEventListener('click', () => {
+  const panel = document.getElementById('testMenuPanel');
+  if(panel.style.display === 'none'){
+    renderTestMenu();
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+});
+
 async function sendMessage(text){
   if((!text && !attachedFile) || isWaitingForResponse) return;
+
+  if(isTestCode(text)){
+    userInput.value = '';
+    autoResize();
+    isWaitingForResponse = true;
+    sendBtn.disabled = true;
+    await runTestScenario(text.trim());
+    isWaitingForResponse = false;
+    sendBtn.disabled = false;
+    return;
+  }
+
   isWaitingForResponse = true;
   sendBtn.disabled = true;
 
