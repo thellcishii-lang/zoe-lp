@@ -372,24 +372,70 @@ const prefillIndustry = urlParams.get('industry');
 const prefillEmail = urlParams.get('email');
 const prefillMsg = urlParams.get('msg');
 
-function buildOpening(){
-  if(prefillCompany || prefillPerson || prefillIndustry || prefillEmail || prefillMsg){
-    let contextLine = '事前情報 — ';
-    if(prefillCompany) contextLine += `会社名: ${prefillCompany}　`;
-    if(prefillPerson) contextLine += `ご担当者様名: ${prefillPerson}　`;
-    if(prefillIndustry) contextLine += `業種: ${prefillIndustry}　`;
-    if(prefillEmail) contextLine += `連絡先: ${prefillEmail}　`;
-    if(prefillMsg) contextLine += `相談内容: ${prefillMsg}`;
-    contextLine += '\n\n上記の情報を踏まえて、挨拶と最初の質問をしてください。会社名とご担当者様名が分かる場合は「(会社名)の(お名前)様」のように呼びかけてください。';
-    conversationHistory.push({role:'user', content: contextLine});
-    return true;
+async function lookupRecall(company, person){
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/recall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'lookup', company, person })
+    });
+    const data = await res.json();
+    return data.found ? data.record : null;
+  }catch(e){
+    return null; // 失敗しても通常の初回フローに落とすだけなので握りつぶす
   }
-  return false;
+}
+
+async function saveRecall(company, person, firstTopic){
+  try{
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/recall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'save', company, person, firstTopic })
+    });
+  }catch(e){
+    // 保存に失敗しても会話自体は継続させる
+  }
+}
+
+// 事前情報を踏まえたcontextLineを組み立てる(通常の初回向け、または再訪問向けで内容を変える)
+function buildContextLine(pastRecord){
+  if(pastRecord){
+    // 再訪問:以前の最初の相談内容を絡めて、感謝+本人確認を兼ねた挨拶にする
+    let line = `事前情報 — 会社名: ${prefillCompany}　ご担当者様名: ${prefillPerson}`;
+    if(prefillIndustry) line += `　業種: ${prefillIndustry}`;
+    if(prefillEmail) line += `　連絡先: ${prefillEmail}`;
+    if(prefillMsg) line += `　今回のご相談内容: ${prefillMsg}`;
+    line += `\n\nこの方は以前にもお問い合わせいただいたことがあり、前回最初にご相談いただいた件は「${pastRecord.firstTopic}」でした。`;
+    line += `\n\n上記を踏まえて、「(会社名)の(お名前)様、いつもご連絡ありがとうございます。本日は、どうされましたか?前回お問い合わせ頂きましたのは、(前回の件)でしたよね?」という形式で、感謝の挨拶と前回内容の確認を続けて自然に述べてください。`;
+    return line;
+  }
+  let contextLine = '事前情報 — ';
+  if(prefillCompany) contextLine += `会社名: ${prefillCompany}　`;
+  if(prefillPerson) contextLine += `ご担当者様名: ${prefillPerson}　`;
+  if(prefillIndustry) contextLine += `業種: ${prefillIndustry}　`;
+  if(prefillEmail) contextLine += `連絡先: ${prefillEmail}　`;
+  if(prefillMsg) contextLine += `相談内容: ${prefillMsg}`;
+  contextLine += '\n\n上記の情報を踏まえて、挨拶と最初の質問をしてください。会社名とご担当者様名が分かる場合は「(会社名)の(お名前)様」のように呼びかけてください。';
+  return contextLine;
 }
 
 // Opening message
-if(buildOpening()){
-  (async () => {
+(async () => {
+  const hasPrefill = prefillCompany || prefillPerson || prefillIndustry || prefillEmail || prefillMsg;
+  let pastRecord = null;
+
+  // 会社名+お名前の両方が揃っている場合のみ、過去の会話を照会する(名前だけの人は記憶対象外)
+  if(prefillCompany && prefillPerson){
+    pastRecord = await lookupRecall(prefillCompany, prefillPerson);
+    // 初めての組み合わせなら、今回の相談内容を「最初の件」として新規保存しておく
+    if(!pastRecord){
+      saveRecall(prefillCompany, prefillPerson, prefillMsg || prefillIndustry || 'ご相談');
+    }
+  }
+
+  if(hasPrefill){
+    conversationHistory.push({role:'user', content: buildContextLine(pastRecord)});
     showTyping();
     try{
       const result = await callZoe(conversationHistory);
@@ -401,11 +447,11 @@ if(buildOpening()){
       addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
       setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
     }
-  })();
-} else {
-  addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
-  setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
-}
+  } else {
+    addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
+    setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+  }
+})();
 </script>
 </body>
 </html>
