@@ -310,9 +310,43 @@ userInput.addEventListener('keydown', function(e){
 });
 sendBtn.addEventListener('click', () => sendMessage(userInput.value.trim()));
 
+// URLパラメータ(会社名・メール・相談内容)を読み取り、入力があればZoeの最初の挨拶に活かす
+const urlParams = new URLSearchParams(window.location.search);
+const prefillName = urlParams.get('name');
+const prefillEmail = urlParams.get('email');
+const prefillMsg = urlParams.get('msg');
+
+function buildOpening(){
+  if(prefillName || prefillEmail || prefillMsg){
+    let contextLine = '事前情報 — ';
+    if(prefillName) contextLine += `会社名・お名前: ${prefillName}　`;
+    if(prefillEmail) contextLine += `連絡先: ${prefillEmail}　`;
+    if(prefillMsg) contextLine += `相談内容: ${prefillMsg}`;
+    conversationHistory.push({role:'user', content: contextLine + '\n\n上記の情報を踏まえて、挨拶と最初の質問をしてください。名前が分かる場合は「〇〇様」と呼びかけてください。'});
+    return true;
+  }
+  return false;
+}
+
 // Opening message
-addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
-setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+if(buildOpening()){
+  (async () => {
+    showTyping();
+    try{
+      const reply = await callZoe(conversationHistory);
+      hideTyping();
+      addMessage('bot', reply);
+      conversationHistory.push({role:'assistant', content: reply});
+    }catch(e){
+      hideTyping();
+      addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
+      setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+    }
+  })();
+} else {
+  addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
+  setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+}
 </script>
 </body>
 </html>
