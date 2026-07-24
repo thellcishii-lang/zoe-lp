@@ -272,9 +272,10 @@ const CREATE_CUSTOMER_TOOL = {
   input_schema: {
     type: "object",
     properties: {
-      customerName: { type: "string", description: "会社名またはお客様のお名前" }
+      customerName: { type: "string", description: "会社名またはお客様のお名前" },
+      email: { type: "string", description: "お客様の連絡先メールアドレス(必ず会話の中で確認してから渡すこと)" }
     },
-    required: ["customerName"]
+    required: ["customerName", "email"]
   }
 };
 
@@ -283,7 +284,7 @@ async function createCustomerTool(input){
     const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: 'create', customerName: input.customerName })
+      body: JSON.stringify({ action: 'create', customerName: input.customerName, email: input.email })
     });
     const data = await res.json();
     if(res.ok && data.id){
