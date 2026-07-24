@@ -122,10 +122,14 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <button id="testMenuBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;">🧪 テスト</button>
+      <button id="testMenuBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;">✏️</button>
       <div class="status-badge" id="statusBadge">setup</div>
     </div>
   </header>
+  <div id="testPasswordPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;">
+    <input id="testPasswordInput" type="password" placeholder="テストパスワード" style="width:160px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:7px;font-size:13px;margin-right:8px;">
+    <button id="testPasswordSubmit" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;cursor:pointer;">開く</button>
+  </div>
   <div id="testMenuPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;"></div>
   <div id="chatArea"></div>
   <div id="inputArea">
@@ -198,6 +202,25 @@ const SEND_QUESTIONS_TOOL = {
 };
 
 async function sendQuestionsFileTool(input){
+  if(testMode){
+    // テストモード中は実際にメール送信せず、チャット上に内容を表示してダウンロードできるようにする
+    const lines = [input.title || '確認事項リスト', ''];
+    (input.questions || []).forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+    const textContent = lines.join('\n');
+
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    const pre = document.createElement('div');
+    pre.style.cssText = 'white-space:pre-wrap;font-size:13px;';
+    pre.textContent = '[テスト: 実際には送信していません]\n\n' + textContent;
+    div.appendChild(pre);
+    div.appendChild(downloadTextFile('questions.txt', textContent));
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    return `テスト表示成功(${(input.questions || []).length}件。実際の送信はしていません)`;
+  }
+
   try{
     const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-questions-pdf", {
       method: "POST",
@@ -356,68 +379,39 @@ async function saveProgress(){
 }
 
 let attachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
+let testMode = false; // trueの間はsend_questions_fileが実際に送信せず、チャットに表示+ダウンロードに切り替わる
 
-const TEST_SCENARIOS = {
-  test001: {
-    label: "不明点5件以内→チャットで質問するか",
-    history: [
-      { role: 'user', content: '当店は美容室です。カット・カラー・パーマ・トリートメントをメインに扱ってます。カットは4,500円、カラーは7,000円からです。' },
-      { role: 'assistant', content: '承知いたしました。カット・カラー・パーマ・トリートメントの4メニューですね。FAQの叩き台を作るために、いくつか確認させてください。①パーマの料金帯は?②トリートメントは単品でも可能ですか?③初回来店の割引などはありますか?' },
-      { role: 'user', content: 'パーマは8,000円から、トリートメントは単品可、初回割引は特にありません。これでFAQの叩き台をお願いします。' }
-    ]
+const TEST_ITEMS = {
+  downloadTest: {
+    label: "確認事項リストのダウンロードテスト",
+    run: runDownloadTest
   },
-  test002: {
-    label: "不明点6件以上→ファイル送付するか",
-    history: [
-      { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブン、真空パック機、スチームコンベクションなど、合計40アイテムほど扱ってます。詳細は追って送ります。連絡先メールはtest002@example.comです。' },
-      { role: 'assistant', content: '承知いたしました。40アイテムと点数が多いので、まずは主要な商品ラインナップから伺えればと思います。それぞれの価格帯、保証期間、納期の目安について教えていただけますか?' },
-      { role: 'user', content: '価格は機種によって様々で一律には言えません。保証は基本1年ですが機種によって違います。納期も国内在庫と海外発注で全然違います。カタログのPDFを別途送りますので、それを見て判断してください。' }
-    ]
-  },
-  test003: {
-    label: "再確認後も不明点が残る→作り直すか進めるかの選択",
-    history: [
-      { role: 'user', content: '当社はリフォーム会社です。水回り、外壁塗装、内装、屋根工事が主な事業です。連絡先メールはtest003@example.comです。' },
-      { role: 'assistant', content: 'ありがとうございます。それぞれの価格帯や工期の目安について、もう少し詳しく伺えますか?' },
-      { role: 'user', content: 'すみません、正直そのあたりは現場や状況次第で本当にまちまちで、こちらでも一概には言えないんです…。' },
-      { role: 'assistant', content: 'かしこまりました。価格・工期以外の部分で、もう少し具体的に伺いたい点がいくつかあります。①対応エリアはどこまでですか?②保証やアフター対応の内容は?③見積もりは無料ですか?④施工実績年数は?⑤自社施工か下請けか?' },
-      { role: 'user', content: '対応エリアは県内全域、保証は10年、見積もり無料、実績15年、自社施工です。ただ価格帯についてはやっぱり明確にはお伝えできません。' }
-    ]
-  },
-  test004: {
-    label: "FAQ拡充が飽和→運用開始の是非を問うか",
-    history: [
-      { role: 'user', content: 'ここまでのFAQ、かなり充実してきたと思います。他に何か質問ありますか?' },
-      { role: 'assistant', content: 'これまでのやり取りで、料金・工期・対応エリア・保証内容・見積もりの流れなど、一通り網羅できたと思います。想定できる質問はほぼ出尽くした印象です。' },
-      { role: 'user', content: 'はい、これ以上は特に無さそうです。' }
-    ]
-  },
-  test005: {
-    label: "運用開始の合意後→納品スクリプトが動くか",
-    history: [
-      { role: 'user', content: 'まずはこの形でサイトにアップロードし、運用開始でお願いします。連絡先メールはtest@example.comです。' }
-    ]
+  emailTest: {
+    label: "メール送信テスト",
+    run: runEmailTest
   }
 };
 
-function isTestCode(text){
-  return /^test\d{3}$/i.test((text || '').trim());
+function downloadTextFile(filename, content){
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = '📄 ' + filename + ' をダウンロード';
+  a.style.cssText = 'display:inline-block;margin-top:8px;color:var(--accent);text-decoration:underline;font-size:13px;';
+  return a;
 }
 
-async function runTestScenario(code){
-  const scenario = TEST_SCENARIOS[code.toLowerCase()];
-  if(!scenario){
-    addMessage('bot', `不明なテストコードです。使えるコード: ${Object.keys(TEST_SCENARIOS).join(', ')}`);
-    return;
-  }
-  chatArea.innerHTML = '';
-  addMessage('bot', `[テストモード: ${scenario.label}]`);
-  scenario.history.forEach(m => {
-    if(typeof m.content === 'string'){
-      addMessage(m.role === 'user' ? 'user' : 'bot', m.content);
-    }
-  });
-  conversationHistory = scenario.history.slice();
+async function runDownloadTest(){
+  testMode = true;
+  addMessage('bot', '[テスト: 確認事項リストのダウンロードテスト]\n不明点が6件以上ある想定で進めます。');
+
+  conversationHistory = [
+    { role: 'user', content: '当社は業務用厨房機器の卸をしています。冷蔵庫、フライヤー、シンク、食洗機、製氷機、コンベクションオーブンなど40アイテムほど扱ってます。' },
+    { role: 'assistant', content: '承知いたしました。まずは主要な商品ラインナップについて、価格帯・保証期間・納期の目安を教えていただけますか?' },
+    { role: 'user', content: '価格は機種によって様々で一律には言えません。保証も機種ごとに違いますし、納期も国内在庫と海外発注で全然違います。' }
+  ];
 
   showTyping();
   try{
@@ -425,25 +419,56 @@ async function runTestScenario(code){
     hideTyping();
     addMessage('bot', result.text);
     conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
-    saveProgress();
   }catch(e){
     hideTyping();
-    addMessage('bot', 'テストシナリオの実行中にエラーが発生しました: ' + e.message);
+    addMessage('bot', 'テスト実行中にエラーが発生しました: ' + e.message);
+  }
+  testMode = false;
+}
+
+async function runEmailTest(){
+  addMessage('bot', '[テスト: メール送信テスト]\n「メールテスト送信」と入力すると、登録されているメールアドレス宛に実際にテストメールを送信します。');
+}
+
+async function sendEmailTestDirect(){
+  if(!currentCustomer || !currentCustomer.email){
+    addMessage('bot', 'このお客様には登録メールアドレスがありません(古いIDのため未登録の可能性があります)。');
+    return;
+  }
+  addMessage('bot', `${currentCustomer.email} 宛にテストメールを送信します...`);
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: currentCustomer.email,
+        subject: "【テスト】設定画面からのメール送信テスト",
+        text: "これは設定用Zoeの画面からのテスト送信です。届いていれば成功です。"
+      })
+    });
+    const data = await res.json();
+    if(res.ok && data.success){
+      addMessage('bot', '送信成功しました。届いているか確認してください。');
+    } else {
+      addMessage('bot', '送信に失敗しました: ' + (data.error || '不明なエラー'));
+    }
+  }catch(e){
+    addMessage('bot', '送信中にエラーが発生しました: ' + e.message);
   }
 }
 
 function renderTestMenu(){
   const panel = document.getElementById('testMenuPanel');
-  panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">テストしたい場面をタップしてください</div>';
-  Object.keys(TEST_SCENARIOS).forEach(code => {
+  panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">テストしたい項目をタップしてください</div>';
+  Object.keys(TEST_ITEMS).forEach(key => {
     const btn = document.createElement('button');
-    btn.textContent = `${code}: ${TEST_SCENARIOS[code].label}`;
+    btn.textContent = TEST_ITEMS[key].label;
     btn.style.cssText = 'display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:6px;cursor:pointer;';
     btn.addEventListener('click', async () => {
       document.getElementById('testMenuPanel').style.display = 'none';
       isWaitingForResponse = true;
       sendBtn.disabled = true;
-      await runTestScenario(code);
+      await TEST_ITEMS[key].run();
       isWaitingForResponse = false;
       sendBtn.disabled = false;
     });
@@ -452,24 +477,37 @@ function renderTestMenu(){
 }
 
 document.getElementById('testMenuBtn').addEventListener('click', () => {
-  const panel = document.getElementById('testMenuPanel');
-  if(panel.style.display === 'none'){
+  const pwPanel = document.getElementById('testPasswordPanel');
+  const menuPanel = document.getElementById('testMenuPanel');
+  if(menuPanel.style.display === 'block'){
+    menuPanel.style.display = 'none';
+    return;
+  }
+  pwPanel.style.display = pwPanel.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('testPasswordSubmit').addEventListener('click', () => {
+  const pw = document.getElementById('testPasswordInput').value;
+  if(pw === '9999'){
+    document.getElementById('testPasswordPanel').style.display = 'none';
+    document.getElementById('testPasswordInput').value = '';
     renderTestMenu();
-    panel.style.display = 'block';
+    document.getElementById('testMenuPanel').style.display = 'block';
   } else {
-    panel.style.display = 'none';
+    alert('パスワードが違います');
   }
 });
 
 async function sendMessage(text){
   if((!text && !attachedFile) || isWaitingForResponse) return;
 
-  if(isTestCode(text)){
+  if((text || '').trim() === 'メールテスト送信'){
     userInput.value = '';
     autoResize();
+    addMessage('user', text);
     isWaitingForResponse = true;
     sendBtn.disabled = true;
-    await runTestScenario(text.trim());
+    await sendEmailTestDirect();
     isWaitingForResponse = false;
     sendBtn.disabled = false;
     return;
