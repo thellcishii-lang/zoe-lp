@@ -156,6 +156,9 @@
   @media(max-width:600px){.grid2{grid-template-columns:1fr;}}
 
   footer{padding:30px 0 50px;text-align:center;color:var(--text-dim);font-size:12px;font-family:'JetBrains Mono',monospace;}
+  footer a{color:var(--text-dim);text-decoration:none;margin:0 8px;}
+  footer a:hover{color:var(--amber);}
+  footer .copyright{margin-top:6px;}
   .toast{
     position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
     background:var(--panel-2);border:1px solid var(--amber);color:var(--text);
@@ -293,7 +296,11 @@
     <a href="zoe-chat.html" class="btn btn-amber" id="btnGoToChat">Zoeに相談する →</a>
   </section>
 
-  <footer>the.chatBOT — Zoe</footer>
+  <footer>
+    the.chatBOT — Zoe<br>
+    <a href="privacy-policy.html">プライバシーポリシー</a> · <a href="terms.html">利用規約</a> · <a href="tokushoho.html">特定商取引法に基づく表記</a>
+    <div class="copyright">© 2026 the.LLC. All Rights Reserved.</div>
+  </footer>
 </div>
 
 <div class="toast" id="toast"></div>
