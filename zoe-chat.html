@@ -196,13 +196,13 @@ const SYSTEM_PROMPT = `あなたは「Zoe(ゾーイ)」という、the.chatBOT�
 
 # 資料請求について
 - 「資料が欲しい」「資料を送ってほしい」などと言われたら、まず会社名・ご担当者名・電話番号・メールアドレス・会社URLの5項目をヒアリングする(すでに分かっているものは聞き直さなくてよい)
-- 会社URLを聞いたら、必ずverify_urlツールで実在を確認する。確認できなかった場合は、もう一度URLを伺う
+- 会社URLを聞いたら、必ずverify_urlツール(会社名も一緒に渡す)で実在・会社名との一致を確認する。URLが確認できなかった場合はもう一度URLを伺う。URLは実在するが会社名との一致が確認できなかった場合は、「恐れ入りますが、こちらのURLで間違いございませんでしょうか?」と一言確認し、問題ないと言われればそのまま次に進んでよい
 - 5項目が揃い、URLの確認も済んだら、check_lead_emailツールでそのメールアドレスの既存記録がないか確認する
   - 記録が見つからない場合 → そのままupsert_leadツールで新規保存し、send_brochureツールでダウンロードリンクを表示する
   - 記録が見つかり、登録されている会社名が今回聞いた会社名と同じ場合 → そのままupsert_leadツールで保存し、send_brochureツールでダウンロードリンクを表示する
   - 記録が見つかり、登録されている会社名が今回聞いた会社名と異なる場合 → お客様に「このメールアドレスは以前『(見つかった会社名)』としてご登録いただいておりますが、ご記憶にございますか?」と尋ねる
     - 「覚えている」旨の返答の場合 → 「別のメールアドレスをご入力いただくか、以前の記録を今回の内容に更新することもできますが、いかがいたしますか?」と尋ね、別のメールアドレスが来ればそのメールアドレスで再度check_lead_emailからやり直す。更新で良いと言われればupsert_leadツールで更新し、send_brochureツールでダウンロードリンクを表示する
-    - 「覚えていない」旨の返答の場合 → 「でしたら、今回いただいた内容でこちらのメールアドレスの登録内容を更新させていただきますね」と伝え、upsert_leadツールで更新し、send_brochureツールでダウンロードリンクを表示する
+    - 「覚えていない」旨の返答の場合 → 「実は、こちらのメールアドレスで以前もお問い合わせをいただいておりまして、こちらの手違いかもしれませんので、念のため今回の内容で更新させていただきますね」と伝え、upsert_leadツールで更新し、send_brochureツールでダウンロードリンクを表示する
 - upsert_lead・check_lead_emailで発行・保持されるIDやパスワードは、いかなる場合もお客様には一切見せない、触れない
 - ツールを呼んだ後は「こちらから資料をご覧いただけます」といった一言を添えるだけで大丈夫です
 - 資料請求は、会話の早い段階(業種や困りごとがまだ分かっていない段階)で言われても構いません。案内した後は、そのまま自然に会話を続けてください
@@ -292,13 +292,14 @@ function setQuickReplies(options){
 
 const VERIFY_URL_TOOL = {
   name: "verify_url",
-  description: "お客様から伺った会社URLが実在するかどうかを確認する。資料請求のヒアリングでURLを聞いた後、必ずこれで確認してから次に進む。",
+  description: "お客様から伺った会社URLが実在するか、また会社名とページ内容が一致しそうかを確認する。資料請求のヒアリングでURLを聞いた後、必ずこれで確認してから次に進む。",
   input_schema: {
     type: "object",
     properties: {
       url: { type: "string", description: "確認したい会社URL" },
+      customerName: { type: "string", description: "お客様が名乗った会社名" },
     },
-    required: ["url"],
+    required: ["url", "customerName"],
   },
 };
 
@@ -307,10 +308,19 @@ async function verifyUrlTool(input){
     const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/verify-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: input.url })
+      body: JSON.stringify({ url: input.url, customerName: input.customerName })
     });
     const data = await res.json();
-    return data.exists ? "URLの実在を確認できました。" : "そのURLは確認できませんでした。もう一度お伺いする必要があります。";
+    if(!data.exists){
+      return "そのURLは確認できませんでした。もう一度URLを伺う必要があります。";
+    }
+    if(data.nameMatch === true){
+      return "URLの実在、および会社名との一致を確認できました。";
+    }
+    if(data.nameMatch === false){
+      return "URLの実在は確認できましたが、ページ内に会社名が見当たりませんでした。お客様に、このURLで間違いないか一言確認してください。";
+    }
+    return "URLの実在は確認できました。";
   }catch(e){
     return "URL確認中にエラーが発生しました: " + e.message;
   }
