@@ -78,13 +78,17 @@ const AUTH_VERIFY_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functio
 let enteredPassword = null;
 
 // --- base64url <-> ArrayBuffer 変換ヘルパー(ライブラリを使わず標準APIだけで完結させる) ---
-function base64urlToBuffer(base64url){
-  const padding = '='.repeat((4 - (base64url.length % 4)) % 4);
-  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  const buffer = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
-  return buffer.buffer;
+function base64urlToBuffer(base64url, fieldNameForDebug){
+  try{
+    const padding = '='.repeat((4 - (base64url.length % 4)) % 4);
+    const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const buffer = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
+    return buffer.buffer;
+  }catch(e){
+    throw new Error(`base64urlデコード失敗(項目:${fieldNameForDebug}, 値:"${base64url}", 型:${typeof base64url})`);
+  }
 }
 function bufferToBase64url(buffer){
   const bytes = new Uint8Array(buffer);
@@ -133,10 +137,10 @@ document.getElementById('faceIdBtn').addEventListener('click', async () => {
     if(!startRes.ok){ msgEl.textContent = options.error || '開始に失敗しました'; msgEl.className='msg error'; return; }
 
     const publicKey = {
-      challenge: base64urlToBuffer(options.challenge),
+      challenge: base64urlToBuffer(options.challenge, 'auth.challenge'),
       rpId: options.rpId,
       allowCredentials: (options.allowCredentials || []).map(c => ({
-        id: base64urlToBuffer(c.id),
+        id: base64urlToBuffer(c.id, 'allowCredentials.id'),
         type: 'public-key',
         transports: c.transports,
       })),
@@ -188,10 +192,10 @@ document.getElementById('registerFaceIdBtn').addEventListener('click', async () 
     if(!startRes.ok){ msgEl.textContent = options.error || '開始に失敗しました'; msgEl.className='msg error'; return; }
 
     const publicKey = {
-      challenge: base64urlToBuffer(options.challenge),
+      challenge: base64urlToBuffer(options.challenge, 'challenge'),
       rp: options.rp,
       user: {
-        id: base64urlToBuffer(options.user.id),
+        id: base64urlToBuffer(options.user.id, 'user.id'),
         name: options.user.name,
         displayName: options.user.displayName,
       },
