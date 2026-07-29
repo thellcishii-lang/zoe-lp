@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>the.chatBOT | お申込み受付</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#10131a;
+    --panel:#1a1f2a;
+    --panel-2:#212836;
+    --line:#2c3444;
+    --text:#e6e9ef;
+    --text-dim:#8a93a6;
+    --accent:#ffb020;
+    --accent-hot:#e69400;
+    --accent-dim:rgba(255,176,32,0.16);
+  }
+  /* 未決済(申込みサポートモード)は黄色テーマに切り替える */
+  body.application-mode{
+    --accent:#ffb020;
+    --accent-hot:#e69400;
+    --accent-dim:rgba(255,176,32,0.16);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ログイン画面 */
+  #loginScreen{
+    flex:1;display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .login-box{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:32px 26px;max-width:360px;width:100%;
+  }
+  .login-box h1{font-family:'Shippori Mincho',serif;font-size:20px;margin:0 0 6px;}
+  .login-box .sub{font-size:13px;color:var(--text-dim);margin-bottom:22px;line-height:1.6;}
+  .login-box input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:12px 14px;border-radius:9px;font-size:15px;margin-bottom:12px;outline:none;
+  }
+  .login-box input:focus{border-color:var(--accent);}
+  .login-box button{
+    width:100%;background:linear-gradient(135deg, var(--accent), var(--accent-hot));
+    color:#fff;border:none;border-radius:9px;padding:13px;font-weight:700;font-size:14.5px;
+    cursor:pointer;touch-action:manipulation;
+  }
+  .login-error{color:#ff6b6b;font-size:13px;margin-top:10px;min-height:18px;}
+
+  /* チャット画面 */
+  #chatScreen{display:none;flex:1;flex-direction:column;overflow:hidden;}
+  header{
+    padding:14px 18px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  }
+  .header-left{display:flex;align-items:center;gap:12px;}
+  .avatar{
+    width:36px;height:36px;border-radius:9px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-hot));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Shippori Mincho',serif;font-weight:700;color:#fff;font-size:14px;
+  }
+  .header-name{font-weight:700;font-size:14px;}
+  .header-sub{font-size:11px;color:var(--text-dim);}
+  .status-badge{
+    font-size:11px;padding:4px 10px;border-radius:20px;background:var(--accent-dim);
+    color:var(--accent);border:1px solid var(--accent);
+  }
+
+  #chatArea{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;max-width:720px;width:100%;margin:0 auto;}
+  .msg{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.65;white-space:pre-wrap;}
+  .msg.bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px;}
+  .msg.user{background:var(--accent-dim);border:1px solid var(--accent);align-self:flex-end;border-bottom-right-radius:4px;}
+  .msg.typing{background:var(--panel);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px;display:flex;gap:4px;padding:14px 16px;}
+  .typing .d{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:bounce 1.2s infinite ease-in-out;}
+  .typing .d:nth-child(2){animation-delay:0.15s;}
+  .typing .d:nth-child(3){animation-delay:0.3s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:0.5;}30%{transform:translateY(-4px);opacity:1;}}
+
+  #inputArea{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);flex-shrink:0;max-width:720px;width:100%;margin:0 auto;box-sizing:border-box;flex-direction:column;}
+  #inputRow{display:flex;gap:10px;}
+  #attachBtn{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer;flex-shrink:0;touch-action:manipulation;
+  }
+  #filePreview{
+    display:none;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--accent);
+    border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--text-dim);margin-bottom:8px;
+  }
+  #filePreview .name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #filePreview .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 4px;}
+  #userInput{flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;}
+  #userInput:focus{border-color:var(--accent);}
+  #sendBtn{background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;touch-action:manipulation;flex-shrink:0;}
+  #sendBtn:disabled{opacity:0.5;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>お申込み受付</h1>
+    <div class="sub">発行されたIDとパスワードでログインしてください。</div>
+    <input id="loginId" placeholder="ID(6桁)">
+    <input id="loginPw" placeholder="パスワード">
+    <button id="loginBtn">ログイン</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="chatScreen">
+  <header>
+    <div class="header-left">
+      <div class="avatar">Z</div>
+      <div>
+        <div class="header-name" id="headerName">Zoe</div>
+        <div class="header-sub" id="headerId"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="testMenuBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;">✏️</button>
+      <div class="status-badge" id="statusBadge">setup</div>
+    </div>
+  </header>
+  <div id="testPasswordPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;">
+    <input id="testPasswordInput" type="password" placeholder="テストパスワード" style="width:160px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:7px;font-size:13px;margin-right:8px;">
+    <button id="testPasswordSubmit" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;cursor:pointer;">開く</button>
+  </div>
+  <div id="testMenuPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;"></div>
+  <div id="chatArea"></div>
+  <div id="inputArea">
+    <div id="filePreview">
+      <span class="name" id="fileName"></span>
+      <span class="remove" id="fileRemove">×</span>
+    </div>
+    <div id="inputRow">
+      <button id="attachBtn" title="画像・PDFを添付">📎</button>
+      <input type="file" id="fileInput" accept=".pdf,image/*" style="display:none;">
+      <textarea id="userInput" rows="1" placeholder="メッセージを入力..."></textarea>
+      <button id="sendBtn">送信</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
+const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
+
+let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
+// (このファイルは常に申込み受付モードで動作する)
+let conversationHistory = [];
+let isWaitingForResponse = false;
+
+const chatArea = document.getElementById('chatArea');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+
+// お客様情報から「書類らしい見た目」のHTMLを組み立て、画像として撮影して返す
+async function renderApplicationPreviewImage(){
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#ffffff;color:#222;font-family:sans-serif;padding:56px;box-sizing:border-box;';
+  wrap.innerHTML = `
+    <div style="color:#C9750A;font-weight:700;font-size:14px;margin-bottom:4px;">the.chatBOT</div>
+    <div style="font-weight:700;font-size:28px;border-bottom:3px solid #C9750A;padding-bottom:10px;margin-bottom:14px;">the.chatBOT Zoe　お申込書</div>
+    <div style="text-align:right;color:#333;font-size:13px;margin-bottom:22px;">発行日: ${dateStr}</div>
+    <div style="font-size:15px;margin-bottom:20px;">以下の内容にて、the.chatBOT Zoeのお申込みを承ります。内容にお間違いがないかご確認ください。</div>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込み内容</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">会社名</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.customerName||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">ご担当者名</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.contactPerson||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">所在地</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.address||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">メールアドレス</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.email||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">会社URL</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.companyUrl||''}</td></tr>
+    </table>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込みプラン</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">プラン名</td><td style="border:1px solid #ccc;padding:8px 10px;">the.chatBOT Zoe</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">月額料金</td><td style="border:1px solid #ccc;padding:8px 10px;">300,000円(税別)</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">お支払い方法</td><td style="border:1px solid #ccc;padding:8px 10px;">クレジットカード決済(月次自動更新)</td></tr>
+    </table>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ ご確認事項</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・決済の際にメールアドレスの入力を求められますが、必ず本申込書のメールアドレスと同じものをご入力ください。一致しない場合、入金確認処理が遅れる可能性がございますので、あらかじめご了承ください。</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・本申込書の記載内容に基づき、お申込み手続きを進めさせていただきます。内容を変更される場合は、お手数ですが最初からお申込み手続きをやり直していただきますようお願い申し上げます。</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:24px;">・お申込み後、7日以内にご決済いただけない場合、本お申込みは無効となります。あらためてお申込み手続きよりお願いいたします。</div>
+    <div style="border-top:1px solid #ccc;padding-top:10px;font-weight:700;font-size:13px;">the合同会社</div>
+    <div style="font-size:11.5px;color:#333;">〒357-0123 埼玉県飯能市中藤下郷602-6　電話: 050-6881-6160</div>
+  `;
+  document.body.appendChild(wrap);
+  const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
+  document.body.removeChild(wrap);
+  return canvas.toDataURL('image/png');
+}
+
+async function showApplicationConfirmation(){
+  addMessage('bot', 'この度はお申込みありがとうございます。');
+
+  if(currentCustomer.applicationImageBase64){
+    // 受付Zoeで生成した時と全く同じ画像・ファイルを、保存されたデータから呼び出して表示する
+    const imageDataUrl = 'data:image/png;base64,' + currentCustomer.applicationImageBase64;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'align-self:flex-start;max-width:90%;';
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid var(--line);cursor:pointer;display:block;';
+    img.addEventListener('click', () => window.open(imageDataUrl, '_blank'));
+    wrap.appendChild(img);
+
+    if(currentCustomer.applicationFileBase64){
+      wrap.appendChild(downloadDocxFile(currentCustomer.applicationFileBase64, currentCustomer.applicationFileName || 'the-chatbot-zoe-application.docx'));
+    }
+    const link = document.createElement('a');
+    link.href = imageDataUrl;
+    link.target = '_blank';
+    link.textContent = '拡大表示';
+    link.style.cssText = 'display:inline-block;margin-top:6px;font-size:12.5px;color:var(--accent);';
+    wrap.appendChild(link);
+    chatArea.appendChild(wrap);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  } else {
+    addMessage('bot', '(申込書のプレビューが見つかりませんでした。内容は下記の通りです)');
+  }
+
+  const summary =
+    `こちらはメールにお送りした書類と同じものになります。\n\n` +
+    `以下の内容でお間違いございませんか?\n\n` +
+    `会社名: ${currentCustomer.customerName || '(未入力)'}\n` +
+    `ご担当者名: ${currentCustomer.contactPerson || '(未入力)'}\n` +
+    `所在地: ${currentCustomer.address || '(未入力)'}\n` +
+    `メールアドレス: ${currentCustomer.email || '(未入力)'}\n` +
+    `会社URL: ${currentCustomer.companyUrl || '(未入力)'}`;
+  addMessage('bot', summary);
+
+  const btn = document.createElement('button');
+  btn.textContent = 'この内容で申し込む';
+  btn.style.cssText = 'align-self:flex-start;margin-top:4px;background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;cursor:pointer;';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    await submitApplication();
+    btn.remove();
+  });
+  chatArea.appendChild(btn);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+async function submitApplication(){
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: 'update',
+        id: currentCustomer.id,
+        password: currentCustomer.password,
+        updates: { applicationSubmittedAt: new Date().toISOString() }
+      })
+    });
+    if(!res.ok){
+      const data = await res.json();
+      addMessage('bot', '記録に失敗しました: ' + (data.error || '不明なエラー'));
+      return;
+    }
+    currentCustomer.applicationSubmittedAt = new Date().toISOString();
+
+    const paymentLink = "https://square.link/u/3x6AttjU";
+    const bodyText =
+      `${currentCustomer.customerName || 'お客様'} 様\n\n` +
+      `お申込みを正式に受け付けました。\n\n` +
+      `以下の決済リンクよりお支払い手続きにお進みください。\n` +
+      `${paymentLink}\n\n` +
+      `お支払いが完了いたしましたら、お支払い完了メールに記載のリンク先より設定にお進みいただけます。\n` +
+      `なお、本日より7日以内にご決済いただけない場合、お手数ですが再度お申込み手続きからお願いいたします。\n\n` +
+      `the.chatBOT`;
+
+    if(currentCustomer.email){
+      await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内", text: bodyText })
+      }).catch(() => {});
+    }
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: "the.chatbot.zoe@gmail.com",
+        subject: "【控え】お申込み受付完了(" + (currentCustomer.customerName || currentCustomer.id) + ")",
+        text: `ID: ${currentCustomer.id}\n会社名: ${currentCustomer.customerName || ''}\nメール: ${currentCustomer.email || ''}\n\n本申込みの受付が完了し、決済リンクを案内しました。`
+      })
+    }).catch(() => {});
+
+    addMessage('bot',
+      `お申込みありがとうございます。\n\n` +
+      `下記のリンクより、お支払いの手続きにお進みください。\n${paymentLink}\n\n` +
+      `なお、本日より7日以内にお手続きいただけない場合、お申込み手続きからとなります。\n` +
+      `メールの方にもお支払いリンクをお送りしておりますので、そちらからもお支払い手続きに進むことができます。\n\n` +
+      `本日は誠にありがとうございました。`
+    );
+  }catch(e){
+    addMessage('bot', '処理中にエラーが発生しました: ' + e.message);
+  }
+}
+
+async function recordSubmissionTool(){
+  // 会話の中でお客様から改めて確認が取れた場合に、Zoe自身が呼ぶための予備ルート。
+  // 通常はボタン操作(submitApplication)で完結するため、こちらが呼ばれることは少ない想定。
+  await submitApplication();
+  return "受付完了を記録し、決済リンクのご案内メールを送信しました。";
+}
+
+async function sendEmailTool(input){
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+    const data = await res.json();
+    if(res.ok && data.success){ return "送信成功しました。"; }
+    return "送信に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "送信中にエラーが発生しました: " + e.message;
+  }
+}
+
+async function sendQuestionsFileTool(input){
+  if(testMode){
+    // テストモード中は実際にメール送信せず、チャット上に内容を表示してダウンロードできるようにする
+    const lines = [input.title || '確認事項リスト', ''];
+    (input.questions || []).forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+    const textContent = lines.join('\n');
+
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    const pre = document.createElement('div');
+    pre.style.cssText = 'white-space:pre-wrap;font-size:13px;';
+    pre.textContent = '[テスト: 実際には送信していません]\n\n' + textContent;
+    div.appendChild(pre);
+    div.appendChild(downloadTextFile('questions.txt', textContent));
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    return `テスト表示成功(${(input.questions || []).length}件。実際の送信はしていません)`;
+  }
+
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-questions-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    });
+    const data = await res.json();
+    if(res.ok && data.success){
+      return `送信成功(${data.count}件の確認事項を送付しました)`;
+    }
+    return "送信に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "送信中にエラーが発生しました: " + e.message;
+  }
+}
+
+async function callZoe(messages){
+  let currentMessages = messages.slice();
+
+  while(true){
+    const response = await fetch(CHAT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "zoe-application",
+        customerName: currentCustomer.customerName,
+        email: currentCustomer.email,
+        messages: currentMessages
+      })
+    });
+    const data = await response.json();
+
+    const toolUseBlock = data.content.find(b => b.type === 'tool_use');
+    if(toolUseBlock){
+      let toolResultText;
+      if(toolUseBlock.name === 'send_email'){
+        toolResultText = await sendEmailTool(toolUseBlock.input);
+      } else if(toolUseBlock.name === 'record_submission'){
+        toolResultText = await recordSubmissionTool();
+      } else {
+        toolResultText = await sendQuestionsFileTool(toolUseBlock.input);
+      }
+      currentMessages = currentMessages.concat([
+        { role: 'assistant', content: data.content },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: toolResultText }] }
+      ]);
+      continue;
+    }
+
+    const textBlock = data.content.find(b => b.type === 'text');
+    return { text: textBlock ? textBlock.text : '(応答の取得に失敗しました)', finalMessages: currentMessages };
+  }
+}
+
+function addMessage(role, text, imageDataUrl){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  if(imageDataUrl){
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.cssText = 'max-width:100%;max-height:220px;border-radius:8px;display:block;margin-bottom:6px;';
+    div.appendChild(img);
+  }
+  const textNode = document.createElement('div');
+  textNode.textContent = text;
+  div.appendChild(textNode);
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function showTyping(){
+  const div = document.createElement('div');
+  div.className = 'msg typing';
+  div.id = 'typingIndicator';
+  div.innerHTML = '<div class="d"></div><div class="d"></div><div class="d"></div>';
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+function hideTyping(){
+  const el = document.getElementById('typingIndicator');
+  if(el) el.remove();
+}
+
+async function saveProgress(){
+  // これまでの会話をfaqDraftとしてそのまま保存しておく(簡易版:あとで整形して使う想定)
+  const faqDraft = conversationHistory.map(m => {
+    const speaker = m.role === 'user' ? 'お客様' : 'Zoe';
+    let content = '';
+    if(typeof m.content === 'string'){
+      content = m.content;
+    } else if(Array.isArray(m.content)){
+      const textBlock = m.content.find(b => b.type === 'text');
+      const fileBlock = m.content.find(b => b.type === 'image' || b.type === 'document');
+      content = (fileBlock ? '[添付ファイルあり] ' : '') + (textBlock ? textBlock.text : '');
+    }
+    return `${speaker}: ${content}`;
+  }).join('\n');
+
+  try{
+    await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: 'update',
+        id: currentCustomer.id,
+        password: currentCustomer.password,
+        updates: { faqDraft }
+      })
+    });
+  }catch(e){
+    // 保存に失敗しても会話は続行する
+  }
+}
+
+let attachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
+let testMode = false; // trueの間はsend_questions_fileが実際に送信せず、チャットに表示+ダウンロードに切り替わる
+
+const TEST_ITEMS = {
+  downloadTest: {
+    label: "確認事項リストのダウンロードテスト",
+    run: runDownloadTest
+  },
+  emailTest: {
+    label: "メール送信テスト",
+    run: runEmailTest
+  }
+};
+
+function downloadDocxFile(base64, filename){
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const url = URL.createObjectURL(blob);
+
+  const wrap = document.createElement('div');
+  wrap.style.marginTop = '8px';
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.textContent = '📄 ' + filename + '(クリックしてダウンロード)';
+  link.style.color = 'var(--accent)';
+  wrap.appendChild(link);
+  return wrap;
+}
+
+function downloadTextFile(filename, content){
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = '📄 ' + filename + ' をダウンロード';
+  a.style.cssText = 'display:inline-block;margin-top:8px;color:var(--accent);text-decoration:underline;font-size:13px;';
+  return a;
+}
+
+async function runDownloadTest(){
+  testMode = true;
+  addMessage('bot', '[テスト: 確認事項リストのダウンロードテスト]\nZoeの判断を挟まず、ダウンロード機構だけを直接検証します。');
+
+  // Zoeにツール呼び出しを判断させず、固定のダミー確認事項(6件)で
+  // sendQuestionsFileTool() を直接呼び出し、ダウンロード機能自体の動作を検証する
+  const dummyInput = {
+    to: (currentCustomer && currentCustomer.email) || 'test@example.com',
+    title: 'テスト用 確認事項リスト',
+    questions: [
+      '冷蔵庫シリーズの型番ごとの保証期間を教えてください',
+      'フライヤーの納期は国内在庫と海外発注でそれぞれ何日程度ですか',
+      'シンクのサイズ展開は何種類ありますか',
+      '食洗機の設置工事は御社で対応していますか',
+      '製氷機のメンテナンス契約はありますか',
+      'コンベクションオーブンの電源仕様(単相/三相)を教えてください'
+    ]
+  };
+
+  try{
+    const result = await sendQuestionsFileTool(dummyInput);
+    addMessage('bot', result);
+  }catch(e){
+    addMessage('bot', 'テスト実行中にエラーが発生しました: ' + e.message);
+  }
+  testMode = false;
+}
+
+async function runEmailTest(){
+  addMessage('bot', '[テスト: メール送信テスト]\n「メールテスト送信」と入力すると、登録されているメールアドレス宛に実際にテストメールを送信します。');
+}
+
+async function sendEmailTestDirect(){
+  if(!currentCustomer || !currentCustomer.email){
+    addMessage('bot', 'このお客様には登録メールアドレスがありません(古いIDのため未登録の可能性があります)。');
+    return;
+  }
+  addMessage('bot', `${currentCustomer.email} 宛にテストメールを送信します...`);
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: currentCustomer.email,
+        subject: "【テスト】設定画面からのメール送信テスト",
+        text: "これは設定用Zoeの画面からのテスト送信です。届いていれば成功です。"
+      })
+    });
+    const data = await res.json();
+    if(res.ok && data.success){
+      addMessage('bot', '送信成功しました。届いているか確認してください。');
+    } else {
+      addMessage('bot', '送信に失敗しました: ' + (data.error || '不明なエラー'));
+    }
+  }catch(e){
+    addMessage('bot', '送信中にエラーが発生しました: ' + e.message);
+  }
+}
+
+function renderTestMenu(){
+  const panel = document.getElementById('testMenuPanel');
+  panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">テストしたい項目をタップしてください</div>';
+  Object.keys(TEST_ITEMS).forEach(key => {
+    const btn = document.createElement('button');
+    btn.textContent = TEST_ITEMS[key].label;
+    btn.style.cssText = 'display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:6px;cursor:pointer;';
+    btn.addEventListener('click', async () => {
+      document.getElementById('testMenuPanel').style.display = 'none';
+      isWaitingForResponse = true;
+      sendBtn.disabled = true;
+      await TEST_ITEMS[key].run();
+      isWaitingForResponse = false;
+      sendBtn.disabled = false;
+    });
+    panel.appendChild(btn);
+  });
+}
+
+document.getElementById('testMenuBtn').addEventListener('click', () => {
+  const pwPanel = document.getElementById('testPasswordPanel');
+  const menuPanel = document.getElementById('testMenuPanel');
+  if(menuPanel.style.display === 'block'){
+    menuPanel.style.display = 'none';
+    return;
+  }
+  pwPanel.style.display = pwPanel.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('testPasswordSubmit').addEventListener('click', () => {
+  const pw = document.getElementById('testPasswordInput').value;
+  if(pw === '9999'){
+    document.getElementById('testPasswordPanel').style.display = 'none';
+    document.getElementById('testPasswordInput').value = '';
+    renderTestMenu();
+    document.getElementById('testMenuPanel').style.display = 'block';
+  } else {
+    alert('パスワードが違います');
+  }
+});
+
+async function sendMessage(text){
+  if((!text && !attachedFile) || isWaitingForResponse) return;
+
+  if((text || '').trim() === 'メールテスト送信'){
+    userInput.value = '';
+    autoResize();
+    addMessage('user', text);
+    isWaitingForResponse = true;
+    sendBtn.disabled = true;
+    await sendEmailTestDirect();
+    isWaitingForResponse = false;
+    sendBtn.disabled = false;
+    return;
+  }
+
+  isWaitingForResponse = true;
+  sendBtn.disabled = true;
+
+  const displayText = text || (attachedFile ? `📎 ${attachedFile.name}` : '');
+  const thumbUrl = (attachedFile && attachedFile.kind === 'image')
+    ? `data:${attachedFile.mediaType};base64,${attachedFile.base64}`
+    : null;
+  addMessage('user', displayText, thumbUrl);
+
+  if(attachedFile){
+    const contentBlocks = [];
+    contentBlocks.push({
+      type: attachedFile.kind,
+      source: { type: 'base64', media_type: attachedFile.mediaType, data: attachedFile.base64 }
+    });
+    contentBlocks.push({ type: 'text', text: text || 'このファイルの内容を確認してください。' });
+    conversationHistory.push({role:'user', content: contentBlocks});
+  } else {
+    conversationHistory.push({role:'user', content: text});
+  }
+
+  userInput.value = '';
+  clearAttachedFile();
+  autoResize();
+
+  showTyping();
+  try{
+    const result = await callZoe(conversationHistory);
+    hideTyping();
+    addMessage('bot', result.text);
+    conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
+    saveProgress();
+  }catch(e){
+    hideTyping();
+    addMessage('bot', 'すみません、通信エラーが発生しました。もう一度お試しください。');
+  }
+  isWaitingForResponse = false;
+  sendBtn.disabled = false;
+}
+
+function clearAttachedFile(){
+  attachedFile = null;
+  document.getElementById('filePreview').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+document.getElementById('attachBtn').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const isPdf = file.type === 'application/pdf';
+  const isImage = file.type.startsWith('image/');
+  if(!isPdf && !isImage){
+    alert('画像またはPDFファイルを選択してください');
+    return;
+  }
+  // サイズ上限の目安(base64化するとサイズが約1.33倍になるため、余裕を見て10MBまでとする)
+  if(file.size > 10 * 1024 * 1024){
+    alert('ファイルサイズが大きすぎます(10MBまで)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    attachedFile = {
+      name: file.name,
+      mediaType: file.type,
+      base64: base64,
+      kind: isPdf ? 'document' : 'image'
+    };
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('filePreview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('fileRemove').addEventListener('click', clearAttachedFile);
+
+function autoResize(){
+  userInput.style.height = 'auto';
+  userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+}
+userInput.addEventListener('input', autoResize);
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+userInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+    if(isTouchDevice){
+      return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
+    }
+    e.preventDefault();
+    sendMessage(userInput.value.trim());
+  }
+});
+sendBtn.addEventListener('click', () => sendMessage(userInput.value.trim()));
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const id = document.getElementById('loginId').value.trim();
+  const password = document.getElementById('loginPw').value.trim();
+  const errorEl = document.getElementById('loginError');
+  errorEl.textContent = '';
+
+  if(!id || !password){ errorEl.textContent = 'IDとパスワードを入力してください'; return; }
+
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'login', id, password })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errorEl.textContent = data.error || 'ログインに失敗しました';
+      return;
+    }
+    currentCustomer = data.record;
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('chatScreen').style.display = 'flex';
+    document.body.classList.add('application-mode');
+    document.getElementById('attachBtn').style.display = 'none';
+    document.getElementById('headerName').textContent = (currentCustomer.customerName || 'お客様') + ' 様(申込み受付)';
+    document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
+
+    if(currentCustomer.paid){
+      // 既に支払い済みの場合は、設定画面へ案内するだけに留める
+      document.getElementById('statusBadge').textContent = '決済済み';
+      addMessage('bot', 'この度はお申込みありがとうございます。既にお支払い手続きが完了しております。\n\n設定はこちらから進めることができます。\nhttps://the-chatbot.com/zoe-setup.html\n\n同じID・パスワードでログインいただけます。');
+    } else {
+      document.getElementById('statusBadge').textContent = '未決済';
+      if(currentCustomer.applicationSubmittedAt){
+        // 既に申込み確定済み、まだ未決済の状態で再訪問した場合
+        addMessage('bot', 'この度はお申込みありがとうございます。以前お申込みを受け付けております。\n\n以下の決済リンクよりお支払い手続きにお進みください。\nhttps://square.link/u/3x6AttjU\n\nお支払いに関してご不明な点があれば、お気軽にお知らせください。');
+      } else {
+        showApplicationConfirmation();
+      }
+    }
+  }catch(e){
+    errorEl.textContent = '通信エラーが発生しました';
+  }
+});
+</script>
+</body>
+</html>
