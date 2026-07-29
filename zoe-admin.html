@@ -68,9 +68,17 @@
       <div style="font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;">秘書Zoe</div>
     </div>
     <div id="secChatArea" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;"></div>
-    <div style="display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);">
-      <textarea id="secInput" rows="1" placeholder="秘書Zoeにメッセージ..." style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;"></textarea>
-      <button id="secSendBtn" style="background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;">送信</button>
+    <div style="padding:14px 18px;border-top:1px solid var(--line);">
+      <div id="secFilePreview" style="display:none;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">
+        <span class="name" id="secFileName" style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <span id="secFileRemove" style="cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 4px;">×</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="secAttachBtn" title="画像・PDFを添付" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer;flex-shrink:0;">📎</button>
+        <input type="file" id="secFileInput" accept=".pdf,image/*" style="display:none;">
+        <textarea id="secInput" rows="1" placeholder="秘書Zoeにメッセージ..." style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;"></textarea>
+        <button id="secSendBtn" style="background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;">送信</button>
+      </div>
     </div>
   </div>
 </div>
@@ -245,27 +253,114 @@ document.getElementById('registerFaceIdBtn').addEventListener('click', async () 
 const SECRETARY_CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
 let secretaryConversation = [];
 
+// 簡易Markdownレンダリング(太字・表・箇条書きだけ対応。それ以外は元のテキストのまま)
+function renderSecMarkdown(text){
+  // まずHTMLとして解釈されないよう安全にエスケープする
+  const escape = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = escape(text).split('\n');
+  let html = '';
+  let i = 0;
+  while(i < lines.length){
+    const line = lines[i];
+    // 表(| ... | ... |の並び)
+    if(/^\s*\|.*\|\s*$/.test(line) && lines[i+1] && /^\s*\|[\s:\-|]+\|\s*$/.test(lines[i+1])){
+      let tableLines = [line];
+      let j = i + 2;
+      while(j < lines.length && /^\s*\|.*\|\s*$/.test(lines[j])){ tableLines.push(lines[j]); j++; }
+      const header = tableLines[0].split('|').map(s=>s.trim()).filter(Boolean);
+      const rows = tableLines.slice(1).map(l => l.split('|').map(s=>s.trim()).filter(Boolean));
+      html += '<table style="border-collapse:collapse;width:100%;margin:6px 0;font-size:13px;">';
+      html += '<tr>' + header.map(h=>`<th style="border:1px solid var(--line);padding:6px 8px;text-align:left;background:var(--panel-2);">${h}</th>`).join('') + '</tr>';
+      rows.forEach(r => {
+        html += '<tr>' + r.map(c=>`<td style="border:1px solid var(--line);padding:6px 8px;">${c}</td>`).join('') + '</tr>';
+      });
+      html += '</table>';
+      i = j;
+      continue;
+    }
+    // 箇条書き
+    if(/^\s*[-・]\s+/.test(line)){
+      let listLines = [];
+      let j = i;
+      while(j < lines.length && /^\s*[-・]\s+/.test(lines[j])){ listLines.push(lines[j].replace(/^\s*[-・]\s+/, '')); j++; }
+      html += '<ul style="margin:4px 0;padding-left:20px;">' + listLines.map(l=>`<li>${l}</li>`).join('') + '</ul>';
+      i = j;
+      continue;
+    }
+    // 太字 **text**
+    const bolded = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html += (bolded || '&nbsp;') + '<br>';
+    i++;
+  }
+  return html;
+}
+
 function addSecMessage(role, text){
   const div = document.createElement('div');
   div.style.cssText = role === 'user'
-    ? 'align-self:flex-end;max-width:82%;background:rgba(124,92,255,0.14);border:1px solid var(--accent);border-radius:14px;border-bottom-right-radius:4px;padding:11px 14px;font-size:14px;white-space:pre-wrap;'
-    : 'align-self:flex-start;max-width:82%;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;padding:11px 14px;font-size:14px;white-space:pre-wrap;';
-  div.textContent = text;
+    ? 'align-self:flex-end;max-width:82%;background:rgba(124,92,255,0.14);border:1px solid var(--accent);border-radius:14px;border-bottom-right-radius:4px;padding:11px 14px;font-size:14px;'
+    : 'align-self:flex-start;max-width:88%;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;padding:11px 14px;font-size:14px;';
+  if(role === 'user'){
+    div.style.whiteSpace = 'pre-wrap';
+    div.textContent = text;
+  } else {
+    div.innerHTML = renderSecMarkdown(text);
+  }
   const area = document.getElementById('secChatArea');
   area.appendChild(div);
   area.scrollTop = area.scrollHeight;
 }
 
+// --- ファイル添付(画像・PDF) ---
+let secAttachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
+
+document.getElementById('secAttachBtn').addEventListener('click', () => {
+  document.getElementById('secFileInput').click();
+});
+document.getElementById('secFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const isPdf = file.type === 'application/pdf';
+  const isImage = file.type.startsWith('image/');
+  if(!isPdf && !isImage){ alert('画像またはPDFファイルを選択してください'); return; }
+  if(file.size > 10 * 1024 * 1024){ alert('ファイルサイズが大きすぎます(10MBまで)'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    secAttachedFile = { name: file.name, mediaType: file.type, base64, kind: isPdf ? 'document' : 'image' };
+    document.getElementById('secFileName').textContent = file.name;
+    document.getElementById('secFilePreview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('secFileRemove').addEventListener('click', () => {
+  secAttachedFile = null;
+  document.getElementById('secFilePreview').style.display = 'none';
+  document.getElementById('secFileInput').value = '';
+});
+
 async function sendSecretaryMessage(){
   const input = document.getElementById('secInput');
   const text = input.value.trim();
-  if(!text) return;
+  if(!text && !secAttachedFile) return;
   const sendBtn = document.getElementById('secSendBtn');
   sendBtn.disabled = true;
   input.value = '';
 
-  addSecMessage('user', text);
-  secretaryConversation.push({ role: 'user', content: text });
+  addSecMessage('user', text || (secAttachedFile ? `📎 ${secAttachedFile.name}` : ''));
+
+  if(secAttachedFile){
+    const contentBlocks = [
+      { type: secAttachedFile.kind, source: { type: 'base64', media_type: secAttachedFile.mediaType, data: secAttachedFile.base64 } },
+      { type: 'text', text: text || 'この内容を確認してください。' }
+    ];
+    secretaryConversation.push({ role: 'user', content: contentBlocks });
+    secAttachedFile = null;
+    document.getElementById('secFilePreview').style.display = 'none';
+    document.getElementById('secFileInput').value = '';
+  } else {
+    secretaryConversation.push({ role: 'user', content: text });
+  }
 
   try{
     const sessionToken = sessionStorage.getItem('adminSessionToken');
@@ -280,11 +375,25 @@ async function sendSecretaryMessage(){
       return;
     }
     addSecMessage('bot', data.reply);
+    if(Array.isArray(data.images) && data.images.length > 0){
+      const area = document.getElementById('secChatArea');
+      data.images.forEach(img => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'align-self:flex-start;max-width:88%;';
+        const el = document.createElement('img');
+        el.src = `data:${img.mediaType};base64,${img.data}`;
+        el.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
+        wrap.appendChild(el);
+        area.appendChild(wrap);
+      });
+      area.scrollTop = area.scrollHeight;
+    }
     secretaryConversation.push({ role: 'assistant', content: data.reply });
   }catch(e){
     addSecMessage('bot', '通信エラーが発生しました: ' + e.message);
   }
   sendBtn.disabled = false;
+
 }
 
 document.getElementById('secSendBtn').addEventListener('click', sendSecretaryMessage);
