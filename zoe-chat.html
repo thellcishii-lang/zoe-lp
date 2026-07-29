@@ -479,8 +479,12 @@ function autoResize(){
 }
 
 userInput.addEventListener('input', autoResize);
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 userInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter' && !e.shiftKey){
+    if(isTouchDevice){
+      return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
+    }
     e.preventDefault();
     sendMessage(userInput.value.trim());
   }
