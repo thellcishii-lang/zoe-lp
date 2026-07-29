@@ -455,7 +455,7 @@ async function createCustomerTool(input){
           })
         }).catch(() => {});
       }
-      return `発行成功。ID: ${data.id} / パスワード: ${data.password} / 設定画面URL: https://the-chatbot.com/zoe-setup.html`;
+      return `発行成功。ID: ${data.id} / パスワード: ${data.password} / 本申込み用リンク: https://the-chatbot.com/zoe-application.html`;
     }
     return "発行に失敗しました: " + (data.error || "不明なエラー");
   }catch(e){
