@@ -63,8 +63,15 @@
 </div>
 
 <div id="chatScreen">
-  <div style="padding:40px;text-align:center;color:var(--text-dim);font-family:'Inter',sans-serif;">
-    ログイン成功しました。秘書Zoeのチャット画面は次のステップで実装します。
+  <div style="max-width:720px;margin:0 auto;height:100vh;display:flex;flex-direction:column;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
+      <div style="font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;">秘書Zoe</div>
+    </div>
+    <div id="secChatArea" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;"></div>
+    <div style="display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line);">
+      <textarea id="secInput" rows="1" placeholder="秘書Zoeにメッセージ..." style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;"></textarea>
+      <button id="secSendBtn" style="background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;">送信</button>
+    </div>
   </div>
 </div>
 
@@ -231,6 +238,60 @@ document.getElementById('registerFaceIdBtn').addEventListener('click', async () 
   }catch(e){
     msgEl.textContent = '登録中にエラーが発生しました: ' + e.message;
     msgEl.className = 'msg error';
+  }
+});
+
+// --- 秘書Zoeとのチャット ---
+const SECRETARY_CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
+let secretaryConversation = [];
+
+function addSecMessage(role, text){
+  const div = document.createElement('div');
+  div.style.cssText = role === 'user'
+    ? 'align-self:flex-end;max-width:82%;background:rgba(124,92,255,0.14);border:1px solid var(--accent);border-radius:14px;border-bottom-right-radius:4px;padding:11px 14px;font-size:14px;white-space:pre-wrap;'
+    : 'align-self:flex-start;max-width:82%;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;padding:11px 14px;font-size:14px;white-space:pre-wrap;';
+  div.textContent = text;
+  const area = document.getElementById('secChatArea');
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+async function sendSecretaryMessage(){
+  const input = document.getElementById('secInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const sendBtn = document.getElementById('secSendBtn');
+  sendBtn.disabled = true;
+  input.value = '';
+
+  addSecMessage('user', text);
+  secretaryConversation.push({ role: 'user', content: text });
+
+  try{
+    const sessionToken = sessionStorage.getItem('adminSessionToken');
+    const res = await fetch(SECRETARY_CHAT_ENDPOINT, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ mode: 'secretary', sessionToken, messages: secretaryConversation })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      addSecMessage('bot', 'エラー: ' + (data.error || '不明なエラー'));
+      sendBtn.disabled = false;
+      return;
+    }
+    addSecMessage('bot', data.reply);
+    secretaryConversation.push({ role: 'assistant', content: data.reply });
+  }catch(e){
+    addSecMessage('bot', '通信エラーが発生しました: ' + e.message);
+  }
+  sendBtn.disabled = false;
+}
+
+document.getElementById('secSendBtn').addEventListener('click', sendSecretaryMessage);
+document.getElementById('secInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendSecretaryMessage();
   }
 });
 </script>
