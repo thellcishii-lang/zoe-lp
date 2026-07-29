@@ -178,10 +178,44 @@ async function recordSubmissionTool(){
       })
     });
     const data = await res.json();
-    if(res.ok){
-      return "受付完了を記録しました。";
+    if(!res.ok){
+      return "記録に失敗しました: " + (data.error || "不明なエラー");
     }
-    return "記録に失敗しました: " + (data.error || "不明なエラー");
+
+    // 受付記録と同時に、決済リンクを案内するメールを必ず自動送信する
+    // (お客様宛+運営宛の控え、両方送る)
+    const paymentLink = "https://square.link/u/3x6AttjU";
+    const bodyText =
+      `${currentCustomer.customerName || 'お客様'} 様\n\n` +
+      `お申込みを正式に受け付けました。\n\n` +
+      `以下の決済リンクよりお支払い手続きにお進みください。\n` +
+      `${paymentLink}\n\n` +
+      `お支払いが完了いたしましたら、お支払い完了メールに記載のリンク先より設定にお進みいただけます。\n` +
+      `なお、1週間以内にご決済いただけない場合、お手数ですが再度お申込み手続きからお願いいたします。\n\n` +
+      `the.chatBOT`;
+
+    if(currentCustomer.email){
+      await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: currentCustomer.email,
+          subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内",
+          text: bodyText
+        })
+      }).catch(() => {});
+    }
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: "the.chatbot.zoe@gmail.com",
+        subject: "【控え】お申込み受付完了(" + (currentCustomer.customerName || currentCustomer.id) + ")",
+        text: `ID: ${currentCustomer.id}\n会社名: ${currentCustomer.customerName || ''}\nメール: ${currentCustomer.email || ''}\n\n本申込みの受付が完了し、決済リンクを案内しました。`
+      })
+    }).catch(() => {});
+
+    return "受付完了を記録し、決済リンクのご案内メールを送信しました。";
   }catch(e){
     return "記録中にエラーが発生しました: " + e.message;
   }
