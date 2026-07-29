@@ -165,7 +165,31 @@ const chatArea = document.getElementById('chatArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 
-async function recordSubmissionTool(){
+function showApplicationConfirmation(){
+  const summary =
+    `この度はお申込みありがとうございます。\n\n` +
+    `以下の内容でお間違いございませんか?\n\n` +
+    `会社名: ${currentCustomer.customerName || '(未入力)'}\n` +
+    `ご担当者名: ${currentCustomer.contactPerson || '(未入力)'}\n` +
+    `所在地: ${currentCustomer.address || '(未入力)'}\n` +
+    `メールアドレス: ${currentCustomer.email || '(未入力)'}\n` +
+    `会社URL: ${currentCustomer.companyUrl || '(未入力)'}`;
+  addMessage('bot', summary);
+
+  const btn = document.createElement('button');
+  btn.textContent = 'この内容で申し込む';
+  btn.style.cssText = 'align-self:flex-start;margin-top:4px;background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;cursor:pointer;';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    await submitApplication();
+    btn.remove();
+  });
+  chatArea.appendChild(btn);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+async function submitApplication(){
   try{
     const res = await fetch(CUSTOMER_ENDPOINT, {
       method: "POST",
@@ -177,13 +201,13 @@ async function recordSubmissionTool(){
         updates: { applicationSubmittedAt: new Date().toISOString() }
       })
     });
-    const data = await res.json();
     if(!res.ok){
-      return "記録に失敗しました: " + (data.error || "不明なエラー");
+      const data = await res.json();
+      addMessage('bot', '記録に失敗しました: ' + (data.error || '不明なエラー'));
+      return;
     }
+    currentCustomer.applicationSubmittedAt = new Date().toISOString();
 
-    // 受付記録と同時に、決済リンクを案内するメールを必ず自動送信する
-    // (お客様宛+運営宛の控え、両方送る)
     const paymentLink = "https://square.link/u/3x6AttjU";
     const bodyText =
       `${currentCustomer.customerName || 'お客様'} 様\n\n` +
@@ -191,18 +215,14 @@ async function recordSubmissionTool(){
       `以下の決済リンクよりお支払い手続きにお進みください。\n` +
       `${paymentLink}\n\n` +
       `お支払いが完了いたしましたら、お支払い完了メールに記載のリンク先より設定にお進みいただけます。\n` +
-      `なお、1週間以内にご決済いただけない場合、お手数ですが再度お申込み手続きからお願いいたします。\n\n` +
+      `なお、本日より7日以内にご決済いただけない場合、お手数ですが再度お申込み手続きからお願いいたします。\n\n` +
       `the.chatBOT`;
 
     if(currentCustomer.email){
       await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: currentCustomer.email,
-          subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内",
-          text: bodyText
-        })
+        body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内", text: bodyText })
       }).catch(() => {});
     }
     await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
@@ -215,10 +235,23 @@ async function recordSubmissionTool(){
       })
     }).catch(() => {});
 
-    return "受付完了を記録し、決済リンクのご案内メールを送信しました。";
+    addMessage('bot',
+      `お申込みありがとうございます。\n\n` +
+      `下記のリンクより、お支払いの手続きにお進みください。\n${paymentLink}\n\n` +
+      `なお、本日より7日以内にお手続きいただけない場合、お申込み手続きからとなります。\n` +
+      `メールの方にもお支払いリンクをお送りしておりますので、そちらからもお支払い手続きに進むことができます。\n\n` +
+      `本日は誠にありがとうございました。`
+    );
   }catch(e){
-    return "記録中にエラーが発生しました: " + e.message;
+    addMessage('bot', '処理中にエラーが発生しました: ' + e.message);
   }
+}
+
+async function recordSubmissionTool(){
+  // 会話の中でお客様から改めて確認が取れた場合に、Zoe自身が呼ぶための予備ルート。
+  // 通常はボタン操作(submitApplication)で完結するため、こちらが呼ばれることは少ない想定。
+  await submitApplication();
+  return "受付完了を記録し、決済リンクのご案内メールを送信しました。";
 }
 
 async function sendEmailTool(input){
@@ -637,10 +670,17 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
     if(isApplicationMode){
       document.body.classList.add('application-mode');
+      document.getElementById('attachBtn').style.display = 'none';
       document.getElementById('headerName').textContent = (currentCustomer.customerName || 'お客様') + ' 様(申込み画面)';
       document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
       document.getElementById('statusBadge').textContent = '未決済';
-      addMessage('bot', 'こんにちは、Zoeです。先ほどメールでお送りした申込書の内容を、こちらに貼り付けてください。');
+
+      if(currentCustomer.applicationSubmittedAt){
+        // 既に申込み確定済み、まだ未決済の状態で再訪問した場合
+        addMessage('bot', 'この度はお申込みありがとうございます。以前お申込みを受け付けております。\n\n以下の決済リンクよりお支払い手続きにお進みください。\nhttps://square.link/u/3x6AttjU\n\nお支払いに関してご不明な点があれば、お気軽にお知らせください。');
+      } else {
+        showApplicationConfirmation();
+      }
     } else {
       document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
       document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
