@@ -288,8 +288,12 @@ async function sendSecretaryMessage(){
 }
 
 document.getElementById('secSendBtn').addEventListener('click', sendSecretaryMessage);
+const isTouchDeviceSec = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 document.getElementById('secInput').addEventListener('keydown', (e) => {
   if(e.key === 'Enter' && !e.shiftKey){
+    if(isTouchDeviceSec){
+      return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
+    }
     e.preventDefault();
     sendSecretaryMessage();
   }
