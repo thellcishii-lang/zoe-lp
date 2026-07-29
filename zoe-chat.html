@@ -337,6 +337,8 @@ function downloadDocxFile(base64, filename){
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+let lastApplicationFile = null; // { base64, filename } 直近で生成した申込書(メール自動添付用)
+
 async function generateApplicationTool(input){
   try{
     const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/generate-application", {
@@ -347,6 +349,7 @@ async function generateApplicationTool(input){
     const data = await res.json();
     if(res.ok && data.fileBase64){
       downloadDocxFile(data.fileBase64, data.filename);
+      lastApplicationFile = { base64: data.fileBase64, filename: data.filename };
       return "申込書を生成し、チャット内にダウンロードリンクを表示しました。";
     }
     return "申込書の生成に失敗しました: " + (data.error || "不明なエラー");
@@ -381,10 +384,15 @@ async function createCustomerTool(input){
 
 async function sendEmailTool(input){
   try{
+    const body = { ...input };
+    // 直近で申込書を生成済みなら、そのファイルをメールに自動添付する
+    if(lastApplicationFile){
+      body.attachments = [{ filename: lastApplicationFile.filename, content: lastApplicationFile.base64 }];
+    }
     const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input)
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if(res.ok && data.success){
