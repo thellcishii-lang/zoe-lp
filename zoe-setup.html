@@ -18,12 +18,6 @@
     --accent-hot:#2f6fe0;
     --accent-dim:rgba(77,156,255,0.14);
   }
-  /* 未決済(申込みサポートモード)は黄色テーマに切り替える */
-  body.application-mode{
-    --accent:#ffb020;
-    --accent-hot:#e69400;
-    --accent-dim:rgba(255,176,32,0.16);
-  }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -104,7 +98,6 @@
   #sendBtn{background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;cursor:pointer;touch-action:manipulation;flex-shrink:0;}
   #sendBtn:disabled{opacity:0.5;}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -158,168 +151,12 @@ const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
-let isApplicationMode = false; // true = 未払い(申込みサポートモード), false = 支払い済み(設定モード)
 let conversationHistory = [];
 let isWaitingForResponse = false;
 
 const chatArea = document.getElementById('chatArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
-
-// お客様情報から「書類らしい見た目」のHTMLを組み立て、画像として撮影して返す
-async function renderApplicationPreviewImage(){
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#ffffff;color:#222;font-family:sans-serif;padding:56px;box-sizing:border-box;';
-  wrap.innerHTML = `
-    <div style="color:#C9750A;font-weight:700;font-size:14px;margin-bottom:4px;">the.chatBOT</div>
-    <div style="font-weight:700;font-size:28px;border-bottom:3px solid #C9750A;padding-bottom:10px;margin-bottom:14px;">the.chatBOT Zoe　お申込書</div>
-    <div style="text-align:right;color:#333;font-size:13px;margin-bottom:22px;">発行日: ${dateStr}</div>
-    <div style="font-size:15px;margin-bottom:20px;">以下の内容にて、the.chatBOT Zoeのお申込みを承ります。内容にお間違いがないかご確認ください。</div>
-    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込み内容</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">会社名</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.customerName||''}</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">ご担当者名</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.contactPerson||''}</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">所在地</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.address||''}</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">メールアドレス</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.email||''}</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">会社URL</td><td style="border:1px solid #ccc;padding:8px 10px;">${currentCustomer.companyUrl||''}</td></tr>
-    </table>
-    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込みプラン</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">プラン名</td><td style="border:1px solid #ccc;padding:8px 10px;">the.chatBOT Zoe</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">月額料金</td><td style="border:1px solid #ccc;padding:8px 10px;">300,000円(税別)</td></tr>
-      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">お支払い方法</td><td style="border:1px solid #ccc;padding:8px 10px;">クレジットカード決済(月次自動更新)</td></tr>
-    </table>
-    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ ご確認事項</div>
-    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・決済の際にメールアドレスの入力を求められますが、必ず本申込書のメールアドレスと同じものをご入力ください。一致しない場合、入金確認処理が遅れる可能性がございますので、あらかじめご了承ください。</div>
-    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・本申込書の記載内容に基づき、お申込み手続きを進めさせていただきます。内容を変更される場合は、お手数ですが最初からお申込み手続きをやり直していただきますようお願い申し上げます。</div>
-    <div style="font-size:12.5px;line-height:1.7;margin-bottom:24px;">・お申込み後、7日以内にご決済いただけない場合、本お申込みは無効となります。あらためてお申込み手続きよりお願いいたします。</div>
-    <div style="border-top:1px solid #ccc;padding-top:10px;font-weight:700;font-size:13px;">the合同会社</div>
-    <div style="font-size:11.5px;color:#333;">〒357-0123 埼玉県飯能市中藤下郷602-6　電話: 050-6881-6160</div>
-  `;
-  document.body.appendChild(wrap);
-  const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
-  document.body.removeChild(wrap);
-  return canvas.toDataURL('image/png');
-}
-
-async function showApplicationConfirmation(){
-  addMessage('bot', 'この度はお申込みありがとうございます。');
-
-  if(currentCustomer.applicationImageBase64){
-    // 受付Zoeで生成した時と全く同じ画像・ファイルを、保存されたデータから呼び出して表示する
-    const imageDataUrl = 'data:image/png;base64,' + currentCustomer.applicationImageBase64;
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'align-self:flex-start;max-width:90%;';
-    const img = document.createElement('img');
-    img.src = imageDataUrl;
-    img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid var(--line);cursor:pointer;display:block;';
-    img.addEventListener('click', () => window.open(imageDataUrl, '_blank'));
-    wrap.appendChild(img);
-
-    if(currentCustomer.applicationFileBase64){
-      wrap.appendChild(downloadDocxFile(currentCustomer.applicationFileBase64, currentCustomer.applicationFileName || 'the-chatbot-zoe-application.docx'));
-    }
-    const link = document.createElement('a');
-    link.href = imageDataUrl;
-    link.target = '_blank';
-    link.textContent = '拡大表示';
-    link.style.cssText = 'display:inline-block;margin-top:6px;font-size:12.5px;color:var(--accent);';
-    wrap.appendChild(link);
-    chatArea.appendChild(wrap);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  } else {
-    addMessage('bot', '(申込書のプレビューが見つかりませんでした。内容は下記の通りです)');
-  }
-
-  const summary =
-    `こちらはメールにお送りした書類と同じものになります。\n\n` +
-    `以下の内容でお間違いございませんか?\n\n` +
-    `会社名: ${currentCustomer.customerName || '(未入力)'}\n` +
-    `ご担当者名: ${currentCustomer.contactPerson || '(未入力)'}\n` +
-    `所在地: ${currentCustomer.address || '(未入力)'}\n` +
-    `メールアドレス: ${currentCustomer.email || '(未入力)'}\n` +
-    `会社URL: ${currentCustomer.companyUrl || '(未入力)'}`;
-  addMessage('bot', summary);
-
-  const btn = document.createElement('button');
-  btn.textContent = 'この内容で申し込む';
-  btn.style.cssText = 'align-self:flex-start;margin-top:4px;background:linear-gradient(135deg, var(--accent), var(--accent-hot));color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14px;cursor:pointer;';
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    btn.textContent = '処理中...';
-    await submitApplication();
-    btn.remove();
-  });
-  chatArea.appendChild(btn);
-  chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-async function submitApplication(){
-  try{
-    const res = await fetch(CUSTOMER_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: 'update',
-        id: currentCustomer.id,
-        password: currentCustomer.password,
-        updates: { applicationSubmittedAt: new Date().toISOString() }
-      })
-    });
-    if(!res.ok){
-      const data = await res.json();
-      addMessage('bot', '記録に失敗しました: ' + (data.error || '不明なエラー'));
-      return;
-    }
-    currentCustomer.applicationSubmittedAt = new Date().toISOString();
-
-    const paymentLink = "https://square.link/u/3x6AttjU";
-    const bodyText =
-      `${currentCustomer.customerName || 'お客様'} 様\n\n` +
-      `お申込みを正式に受け付けました。\n\n` +
-      `以下の決済リンクよりお支払い手続きにお進みください。\n` +
-      `${paymentLink}\n\n` +
-      `お支払いが完了いたしましたら、お支払い完了メールに記載のリンク先より設定にお進みいただけます。\n` +
-      `なお、本日より7日以内にご決済いただけない場合、お手数ですが再度お申込み手続きからお願いいたします。\n\n` +
-      `the.chatBOT`;
-
-    if(currentCustomer.email){
-      await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内", text: bodyText })
-      }).catch(() => {});
-    }
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: "the.chatbot.zoe@gmail.com",
-        subject: "【控え】お申込み受付完了(" + (currentCustomer.customerName || currentCustomer.id) + ")",
-        text: `ID: ${currentCustomer.id}\n会社名: ${currentCustomer.customerName || ''}\nメール: ${currentCustomer.email || ''}\n\n本申込みの受付が完了し、決済リンクを案内しました。`
-      })
-    }).catch(() => {});
-
-    addMessage('bot',
-      `お申込みありがとうございます。\n\n` +
-      `下記のリンクより、お支払いの手続きにお進みください。\n${paymentLink}\n\n` +
-      `なお、本日より7日以内にお手続きいただけない場合、お申込み手続きからとなります。\n` +
-      `メールの方にもお支払いリンクをお送りしておりますので、そちらからもお支払い手続きに進むことができます。\n\n` +
-      `本日は誠にありがとうございました。`
-    );
-  }catch(e){
-    addMessage('bot', '処理中にエラーが発生しました: ' + e.message);
-  }
-}
-
-async function recordSubmissionTool(){
-  // 会話の中でお客様から改めて確認が取れた場合に、Zoe自身が呼ぶための予備ルート。
-  // 通常はボタン操作(submitApplication)で完結するため、こちらが呼ばれることは少ない想定。
-  await submitApplication();
-  return "受付完了を記録し、決済リンクのご案内メールを送信しました。";
-}
 
 async function sendEmailTool(input){
   try{
@@ -380,7 +217,7 @@ async function callZoe(messages){
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mode: isApplicationMode ? "zoe-application" : "zoe-setup",
+        mode: "zoe-setup",
         customerName: currentCustomer.customerName,
         email: currentCustomer.email,
         messages: currentMessages
@@ -393,8 +230,6 @@ async function callZoe(messages){
       let toolResultText;
       if(toolUseBlock.name === 'send_email'){
         toolResultText = await sendEmailTool(toolUseBlock.input);
-      } else if(toolUseBlock.name === 'record_submission'){
-        toolResultText = await recordSubmissionTool();
       } else {
         toolResultText = await sendQuestionsFileTool(toolUseBlock.input);
       }
@@ -749,35 +584,18 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       return;
     }
     currentCustomer = data.record;
-    isApplicationMode = !currentCustomer.paid;
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
+    document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
+    document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
+    document.getElementById('statusBadge').textContent = currentCustomer.status || 'setup';
 
-    if(isApplicationMode){
-      document.body.classList.add('application-mode');
-      document.getElementById('attachBtn').style.display = 'none';
-      document.getElementById('headerName').textContent = (currentCustomer.customerName || 'お客様') + ' 様(申込み画面)';
-      document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
-      document.getElementById('statusBadge').textContent = '未決済';
-
-      if(currentCustomer.applicationSubmittedAt){
-        // 既に申込み確定済み、まだ未決済の状態で再訪問した場合
-        addMessage('bot', 'この度はお申込みありがとうございます。以前お申込みを受け付けております。\n\n以下の決済リンクよりお支払い手続きにお進みください。\nhttps://square.link/u/3x6AttjU\n\nお支払いに関してご不明な点があれば、お気軽にお知らせください。');
-      } else {
-        showApplicationConfirmation();
-      }
-    } else {
-      document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
-      document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
-      document.getElementById('statusBadge').textContent = currentCustomer.status || 'setup';
-
-      // 既存の会話ログがあれば復元し、続きから始める
-      if(currentCustomer.faqDraft){
-        addMessage('bot', 'おかえりなさい、続きから始めましょう。前回はここまで進んでいました。');
-      }
-      addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+    // 既存の会話ログがあれば復元し、続きから始める
+    if(currentCustomer.faqDraft){
+      addMessage('bot', 'おかえりなさい、続きから始めましょう。前回はここまで進んでいました。');
     }
+    addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
   }catch(e){
     errorEl.textContent = '通信エラーが発生しました';
   }
