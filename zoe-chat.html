@@ -535,6 +535,13 @@ function buildContextLine(pastRecord){
   return contextLine;
 }
 
+// アクセス統計:このチャット画面が開かれるたびに1回記録する(失敗しても会話には影響させない)
+fetch("https://chatbot-proxy.netlify.app/.netlify/functions/track-event", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ type: "chat_start", botId: "Zoe001" })
+}).catch(() => {});
+
 // Opening message
 (async () => {
   const hasPrefill = prefillCompany || prefillPerson || prefillIndustry || prefillEmail || prefillMsg;
