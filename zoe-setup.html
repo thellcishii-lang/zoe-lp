@@ -18,6 +18,12 @@
     --accent-hot:#2f6fe0;
     --accent-dim:rgba(77,156,255,0.14);
   }
+  /* 未決済(申込みサポートモード)は黄色テーマに切り替える */
+  body.application-mode{
+    --accent:#ffb020;
+    --accent-hot:#e69400;
+    --accent-dim:rgba(255,176,32,0.16);
+  }
   *{box-sizing:border-box;}
   body{
     margin:0;
@@ -151,12 +157,35 @@ const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
+let isApplicationMode = false; // true = 未払い(申込みサポートモード), false = 支払い済み(設定モード)
 let conversationHistory = [];
 let isWaitingForResponse = false;
 
 const chatArea = document.getElementById('chatArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
+
+async function recordSubmissionTool(){
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: 'update',
+        id: currentCustomer.id,
+        password: currentCustomer.password,
+        updates: { applicationSubmittedAt: new Date().toISOString() }
+      })
+    });
+    const data = await res.json();
+    if(res.ok){
+      return "受付完了を記録しました。";
+    }
+    return "記録に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "記録中にエラーが発生しました: " + e.message;
+  }
+}
 
 async function sendEmailTool(input){
   try{
@@ -217,7 +246,7 @@ async function callZoe(messages){
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mode: "zoe-setup",
+        mode: isApplicationMode ? "zoe-application" : "zoe-setup",
         customerName: currentCustomer.customerName,
         email: currentCustomer.email,
         messages: currentMessages
@@ -230,6 +259,8 @@ async function callZoe(messages){
       let toolResultText;
       if(toolUseBlock.name === 'send_email'){
         toolResultText = await sendEmailTool(toolUseBlock.input);
+      } else if(toolUseBlock.name === 'record_submission'){
+        toolResultText = await recordSubmissionTool();
       } else {
         toolResultText = await sendQuestionsFileTool(toolUseBlock.input);
       }
@@ -561,17 +592,28 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       return;
     }
     currentCustomer = data.record;
+    isApplicationMode = !currentCustomer.paid;
+
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
-    document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
-    document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
-    document.getElementById('statusBadge').textContent = currentCustomer.status || 'setup';
 
-    // 既存の会話ログがあれば復元し、続きから始める
-    if(currentCustomer.faqDraft){
-      addMessage('bot', 'おかえりなさい、続きから始めましょう。前回はここまで進んでいました。');
+    if(isApplicationMode){
+      document.body.classList.add('application-mode');
+      document.getElementById('headerName').textContent = (currentCustomer.customerName || 'お客様') + ' 様(申込み画面)';
+      document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
+      document.getElementById('statusBadge').textContent = '未決済';
+      addMessage('bot', 'こんにちは、Zoeです。先ほどメールでお送りした申込書の内容を、こちらに貼り付けてください。');
+    } else {
+      document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
+      document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
+      document.getElementById('statusBadge').textContent = currentCustomer.status || 'setup';
+
+      // 既存の会話ログがあれば復元し、続きから始める
+      if(currentCustomer.faqDraft){
+        addMessage('bot', 'おかえりなさい、続きから始めましょう。前回はここまで進んでいました。');
+      }
+      addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
     }
-    addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
   }catch(e){
     errorEl.textContent = '通信エラーが発生しました';
   }
