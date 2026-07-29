@@ -159,6 +159,8 @@
   }
   #sendBtn:disabled{opacity:0.5;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -333,11 +335,49 @@ function downloadDocxFile(base64, filename){
   link.textContent = '📄 ' + filename + '(クリックしてダウンロード)';
   link.style.color = 'var(--amber)';
   wrap.appendChild(link);
-  chatArea.appendChild(wrap);
-  chatArea.scrollTop = chatArea.scrollHeight;
+  return wrap;
 }
 
 let lastApplicationFile = null; // { base64, filename } 直近で生成した申込書(メール自動添付用)
+let lastApplicationPreviewImage = null; // 直近で生成した申込書のプレビュー画像(base64 PNG、申込み画面と共有表示するため)
+
+// お客様情報から「書類らしい見た目」のHTMLを組み立て、画像として撮影して返す
+async function renderApplicationPreviewImage(data){
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#ffffff;color:#222;font-family:sans-serif;padding:56px;box-sizing:border-box;';
+  wrap.innerHTML = `
+    <div style="color:#C9750A;font-weight:700;font-size:14px;margin-bottom:4px;">the.chatBOT</div>
+    <div style="font-weight:700;font-size:28px;border-bottom:3px solid #C9750A;padding-bottom:10px;margin-bottom:14px;">the.chatBOT Zoe　お申込書</div>
+    <div style="text-align:right;color:#333;font-size:13px;margin-bottom:22px;">発行日: ${dateStr}</div>
+    <div style="font-size:15px;margin-bottom:20px;">以下の内容にて、the.chatBOT Zoeのお申込みを承ります。内容にお間違いがないかご確認ください。</div>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込み内容</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">会社名</td><td style="border:1px solid #ccc;padding:8px 10px;">${data.customerName||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">ご担当者名</td><td style="border:1px solid #ccc;padding:8px 10px;">${data.contactPerson||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">所在地</td><td style="border:1px solid #ccc;padding:8px 10px;">${data.address||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">メールアドレス</td><td style="border:1px solid #ccc;padding:8px 10px;">${data.email||''}</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">会社URL</td><td style="border:1px solid #ccc;padding:8px 10px;">${data.companyUrl||''}</td></tr>
+    </table>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ お申込みプラン</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;width:28%;">プラン名</td><td style="border:1px solid #ccc;padding:8px 10px;">the.chatBOT Zoe</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">月額料金</td><td style="border:1px solid #ccc;padding:8px 10px;">300,000円(税別)</td></tr>
+      <tr><td style="background:#F5F2EC;border:1px solid #ccc;padding:8px 10px;font-weight:700;">お支払い方法</td><td style="border:1px solid #ccc;padding:8px 10px;">クレジットカード決済(月次自動更新)</td></tr>
+    </table>
+    <div style="color:#C9750A;font-weight:700;font-size:16px;margin-bottom:8px;">■ ご確認事項</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・決済の際にメールアドレスの入力を求められますが、必ず本申込書のメールアドレスと同じものをご入力ください。一致しない場合、入金確認処理が遅れる可能性がございますので、あらかじめご了承ください。</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:6px;">・本申込書の記載内容に基づき、お申込み手続きを進めさせていただきます。内容を変更される場合は、お手数ですが最初からお申込み手続きをやり直していただきますようお願い申し上げます。</div>
+    <div style="font-size:12.5px;line-height:1.7;margin-bottom:24px;">・お申込み後、7日以内にご決済いただけない場合、本お申込みは無効となります。あらためてお申込み手続きよりお願いいたします。</div>
+    <div style="border-top:1px solid #ccc;padding-top:10px;font-weight:700;font-size:13px;">the合同会社</div>
+    <div style="font-size:11.5px;color:#333;">〒357-0123 埼玉県飯能市中藤下郷602-6　電話: 050-6881-6160</div>
+  `;
+  document.body.appendChild(wrap);
+  const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: '#ffffff' });
+  document.body.removeChild(wrap);
+  return canvas.toDataURL('image/png');
+}
 
 async function generateApplicationTool(input){
   try{
@@ -348,9 +388,32 @@ async function generateApplicationTool(input){
     });
     const data = await res.json();
     if(res.ok && data.fileBase64){
-      downloadDocxFile(data.fileBase64, data.filename);
       lastApplicationFile = { base64: data.fileBase64, filename: data.filename };
-      return "申込書を生成し、チャット内にダウンロードリンクを表示しました。";
+
+      try{
+        const imageDataUrl = await renderApplicationPreviewImage(input);
+        lastApplicationPreviewImage = imageDataUrl.split(',')[1]; // base64部分のみ保持
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'margin-top:8px;';
+        const img = document.createElement('img');
+        img.src = imageDataUrl;
+        img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid #444;cursor:pointer;display:block;';
+        img.addEventListener('click', () => window.open(imageDataUrl, '_blank'));
+        wrap.appendChild(img);
+        wrap.appendChild(downloadDocxFile(data.fileBase64, data.filename));
+        chatArea.appendChild(wrap);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }catch(e){
+        // 画像生成に失敗しても、ダウンロードリンクだけは出す
+        const wrap = document.createElement('div');
+        wrap.style.marginTop = '8px';
+        wrap.appendChild(downloadDocxFile(data.fileBase64, data.filename));
+        chatArea.appendChild(wrap);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      return "申込書を生成し、チャット内に画像プレビューとダウンロードリンクを表示しました。";
     }
     return "申込書の生成に失敗しました: " + (data.error || "不明なエラー");
   }catch(e){
@@ -374,6 +437,24 @@ async function createCustomerTool(input){
     });
     const data = await res.json();
     if(res.ok && data.id){
+      // 直近で生成した申込書(ファイル・プレビュー画像)を、新しく発行したIDのレコードに紐づけて保存する。
+      // これにより、後で黄色い申込み画面(zoe-setup.html)を開いた時に、全く同じものを表示できる。
+      if(lastApplicationFile || lastApplicationPreviewImage){
+        await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: 'update',
+            id: data.id,
+            password: data.password,
+            updates: {
+              applicationFileBase64: lastApplicationFile ? lastApplicationFile.base64 : null,
+              applicationFileName: lastApplicationFile ? lastApplicationFile.filename : null,
+              applicationImageBase64: lastApplicationPreviewImage || null
+            }
+          })
+        }).catch(() => {});
+      }
       return `発行成功。ID: ${data.id} / パスワード: ${data.password} / 設定画面URL: https://the-chatbot.com/zoe-setup.html`;
     }
     return "発行に失敗しました: " + (data.error || "不明なエラー");
