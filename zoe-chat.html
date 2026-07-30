@@ -494,7 +494,7 @@ async function callZoe(messages){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mode: "zoe-chat",
-        adminPassword: new URLSearchParams(window.location.search).get('admin') || null,
+        adminPassword: sessionAdminPassword || new URLSearchParams(window.location.search).get('admin') || null,
         messages: currentMessages
       })
     });
@@ -530,8 +530,31 @@ async function callZoe(messages){
   }
 }
 
+let sessionAdminPassword = null; // 入力されたadminパスワード(一致すればサーバー側でブラックリスト対象外になる)
+let awaitingAdminPassword = false; // 「admin」と入力された直後、次の入力をパスワードとして扱うフラグ
+
 async function sendMessage(text){
   if(!text || isWaitingForResponse) return;
+
+  // 「admin」関連の入力は、Zoeに送らずこの画面だけで完結させる
+  if(awaitingAdminPassword){
+    sessionAdminPassword = text.trim();
+    awaitingAdminPassword = false;
+    addMessage('user', text);
+    addMessage('bot', '承知しました。');
+    userInput.value = '';
+    autoResize();
+    return;
+  }
+  if(/^admin/i.test(text.trim())){
+    addMessage('user', text);
+    addMessage('bot', 'パスワードを入力してください。');
+    awaitingAdminPassword = true;
+    userInput.value = '';
+    autoResize();
+    return;
+  }
+
   isWaitingForResponse = true;
   sendBtn.disabled = true;
   quickRepliesEl.innerHTML = '';
