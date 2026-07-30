@@ -160,6 +160,7 @@ const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
+const urlAdminPassword = new URLSearchParams(window.location.search).get('admin') || null;
 let conversationHistory = [];
 let isWaitingForResponse = false;
 
@@ -227,6 +228,8 @@ async function callZoe(messages){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mode: "zoe-setup",
+        id: currentCustomer.id,
+        adminPassword: urlAdminPassword,
         customerName: currentCustomer.customerName,
         email: currentCustomer.email,
         stage1Complete: !!currentCustomer.stage1Complete,
@@ -264,6 +267,8 @@ async function callZoe(messages){
           toolResultText = await exportFaqTool(block.input);
         } else if(block.name === 'update_chat_display'){
           toolResultText = await applyChatDisplayChange(block.input.displayName, block.input.bgColor, block.input.textColor);
+        } else if(block.name === 'issue_my_admin_password'){
+          toolResultText = await issueMyAdminPasswordTool();
         } else {
           toolResultText = "不明なツールです";
         }
@@ -438,6 +443,23 @@ async function exportFaqTool(input){
 async function applyChatDisplayChange(displayName, bgColor, textColor){
   const ok = await updateCustomerRecord({ chatDisplayName: displayName, chatTheme: { bgColor, textColor } });
   return ok ? `チャット名を「${displayName}」に変更しました。` : "変更に失敗しました。";
+}
+
+async function issueMyAdminPasswordTool(){
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'generateAdminPassword', id: currentCustomer.id, password: currentCustomer.password })
+    });
+    const data = await res.json();
+    if(res.ok && data.adminPassword){
+      return `adminパスワードを発行しました: ${data.adminPassword}(本番チャットのURLの末尾に ?admin=${data.adminPassword} を付けてアクセスすると、アクセス制限の対象外になります)`;
+    }
+    return "発行に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "発行中にエラーが発生しました: " + e.message;
+  }
 }
 
 document.getElementById('chatNameChangeBtn').addEventListener('click', async () => {
