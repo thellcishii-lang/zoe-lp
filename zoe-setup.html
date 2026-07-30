@@ -804,7 +804,16 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
         addMessage('bot', '前回はここまで進んでいました。続きをお聞かせください。');
       }
     } else {
-      addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+      showTyping();
+      try{
+        const result = await callZoe([{ role: 'user', content: '(これはお客様には見えないシステムメッセージです。初回の挨拶をお願いします)' }]);
+        hideTyping();
+        addMessage('bot', result.text);
+        conversationHistory = result.finalMessages.concat([{ role: 'assistant', content: result.text }]);
+      }catch(e){
+        hideTyping();
+        addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+      }
     }
   }catch(e){
     errorEl.textContent = '通信エラーが発生しました';
