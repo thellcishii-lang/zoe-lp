@@ -381,6 +381,8 @@ async function callZoe(messages){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mode: "zoe-application",
+        id: currentCustomer.id,
+        adminPassword: new URLSearchParams(window.location.search).get('admin') || null,
         customerName: currentCustomer.customerName,
         email: currentCustomer.email,
         messages: currentMessages
