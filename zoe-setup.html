@@ -126,6 +126,9 @@
       <div class="status-badge" id="statusBadge">setup</div>
     </div>
   </header>
+  <div id="chatNameBar" style="display:flex;justify-content:flex-end;padding:6px 18px;border-bottom:1px solid var(--line);">
+    <button id="chatNameChangeBtn" style="background:none;border:none;color:var(--text-dim);font-size:12.5px;cursor:pointer;padding:4px 6px;">チャット名変更</button>
+  </div>
   <div id="testPasswordPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;">
     <input id="testPasswordInput" type="password" placeholder="テストパスワード" style="width:160px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:7px;font-size:13px;margin-right:8px;">
     <button id="testPasswordSubmit" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;cursor:pointer;">開く</button>
@@ -143,6 +146,11 @@
       <textarea id="userInput" rows="1" placeholder="メッセージを入力..."></textarea>
       <button id="sendBtn">送信</button>
     </div>
+  </div>
+  <div id="stageButtonBar" style="display:none;gap:8px;padding:10px 18px 14px;">
+    <button id="stage1Btn" style="flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;">ステージ1</button>
+    <button id="stage2Btn" style="display:none;flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;">ステージ2</button>
+    <button id="publishBtn" style="display:none;flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;background:#ffb020;color:#fff;">公開</button>
   </div>
 </div>
 
@@ -220,22 +228,46 @@ async function callZoe(messages){
         mode: "zoe-setup",
         customerName: currentCustomer.customerName,
         email: currentCustomer.email,
+        stage1Complete: !!currentCustomer.stage1Complete,
+        stage2Active: !!currentCustomer.stage2Active,
+        stage2Complete: !!currentCustomer.stage2Complete,
+        published: !!currentCustomer.published,
         messages: currentMessages
       })
     });
     const data = await response.json();
 
-    const toolUseBlock = data.content.find(b => b.type === 'tool_use');
-    if(toolUseBlock){
-      let toolResultText;
-      if(toolUseBlock.name === 'send_email'){
-        toolResultText = await sendEmailTool(toolUseBlock.input);
-      } else {
-        toolResultText = await sendQuestionsFileTool(toolUseBlock.input);
+    const toolUseBlocks = (data.content || []).filter(b => b.type === 'tool_use');
+    if(toolUseBlocks.length > 0){
+      const toolResultBlocks = [];
+      for(const block of toolUseBlocks){
+        let toolResultText;
+        if(block.name === 'send_email'){
+          toolResultText = await sendEmailTool(block.input);
+        } else if(block.name === 'send_questions_file'){
+          toolResultText = await sendQuestionsFileTool(block.input);
+        } else if(block.name === 'complete_stage1'){
+          toolResultText = await completeStage1Tool();
+        } else if(block.name === 'start_stage2'){
+          toolResultText = await startStage2Tool();
+        } else if(block.name === 'pause_stage2'){
+          toolResultText = await pauseStage2Tool();
+        } else if(block.name === 'complete_stage2'){
+          toolResultText = await completeStage2Tool();
+        } else if(block.name === 'publish'){
+          toolResultText = await publishTool();
+        } else if(block.name === 'export_faq'){
+          toolResultText = await exportFaqTool(block.input);
+        } else if(block.name === 'update_chat_display'){
+          toolResultText = await applyChatDisplayChange(block.input.displayName, block.input.bgColor, block.input.textColor);
+        } else {
+          toolResultText = "不明なツールです";
+        }
+        toolResultBlocks.push({ type: 'tool_result', tool_use_id: block.id, content: toolResultText });
       }
       currentMessages = currentMessages.concat([
         { role: 'assistant', content: data.content },
-        { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: toolResultText }] }
+        { role: 'user', content: toolResultBlocks }
       ]);
       continue;
     }
@@ -274,6 +306,149 @@ function hideTyping(){
   if(el) el.remove();
 }
 
+async function updateCustomerRecord(updates){
+  try{
+    await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: 'update',
+        id: currentCustomer.id,
+        password: currentCustomer.password,
+        updates
+      })
+    });
+    Object.assign(currentCustomer, updates);
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function renderStageButtons(){
+  const bar = document.getElementById('stageButtonBar');
+  const s1 = document.getElementById('stage1Btn');
+  const s2 = document.getElementById('stage2Btn');
+  const pub = document.getElementById('publishBtn');
+  bar.style.display = 'flex';
+
+  if(currentCustomer.stage1Complete){
+    s1.style.background = '#4d9cff';
+    s1.style.color = '#fff';
+    s1.disabled = true;
+    s2.style.display = 'block';
+    pub.style.display = 'block';
+  } else {
+    s1.style.background = '#ffb020';
+    s1.style.color = '#fff';
+    s1.disabled = false;
+    s2.style.display = 'none';
+    pub.style.display = 'none';
+  }
+
+  if(currentCustomer.stage2Complete){
+    s2.style.background = '#4d9cff';
+    s2.style.color = '#fff';
+    s2.textContent = 'ステージ2';
+  } else if(currentCustomer.stage2Active){
+    s2.style.background = '#ffb020';
+    s2.style.color = '#fff';
+    s2.textContent = 'ステージ2(中断)';
+  } else {
+    s2.style.background = '#ffb020';
+    s2.style.color = '#fff';
+    s2.textContent = 'ステージ2';
+  }
+}
+
+document.getElementById('stage1Btn').addEventListener('click', () => {
+  if(currentCustomer.stage1Complete) return;
+  sendMessage('ステージ1を完了できるか確認してください');
+});
+document.getElementById('stage2Btn').addEventListener('click', () => {
+  if(currentCustomer.stage2Complete) return;
+  sendMessage(currentCustomer.stage2Active ? 'ステージ2を中断してください' : 'ステージ2を始めたいです');
+});
+document.getElementById('publishBtn').addEventListener('click', () => {
+  sendMessage('公開したいです');
+});
+
+async function completeStage1Tool(){
+  const ok = await updateCustomerRecord({ stage1Complete: true });
+  renderStageButtons();
+  return ok ? "ステージ1を完了として記録しました。" : "記録に失敗しました。";
+}
+async function startStage2Tool(){
+  const ok = await updateCustomerRecord({ stage2Active: true });
+  renderStageButtons();
+  return ok ? "ステージ2を開始として記録しました。" : "記録に失敗しました。";
+}
+async function pauseStage2Tool(){
+  const ok = await updateCustomerRecord({ stage2Active: false });
+  renderStageButtons();
+  return ok ? "ステージ2を中断・保存しました。" : "記録に失敗しました。";
+}
+async function completeStage2Tool(){
+  const ok = await updateCustomerRecord({ stage2Active: false, stage2Complete: true });
+  renderStageButtons();
+  return ok ? "ステージ2を完了として記録しました。" : "記録に失敗しました。";
+}
+async function publishTool(){
+  const ok = await updateCustomerRecord({ published: true });
+  renderStageButtons();
+  if(!ok) return "記録に失敗しました。";
+  try{
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: currentCustomer.email,
+        subject: "【the.chatBOT】公開手続きのご案内",
+        text: `${currentCustomer.customerName || 'お客様'} 様\n\n公開手続きを承りました。埋め込み用のコード・設置手順は、担当者より追ってご案内いたします。\n\nthe.chatBOT`
+      })
+    });
+  }catch(e){}
+  return "公開処理を行い、案内メールを送信しました。";
+}
+async function exportFaqTool(input){
+  try{
+    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/generate-faq-document", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customerName: currentCustomer.customerName, content: input.content })
+    });
+    const data = await res.json();
+    if(res.ok && data.fileBase64){
+      const wrap = document.createElement('div');
+      wrap.style.marginTop = '8px';
+      wrap.appendChild(downloadDocxFile(data.fileBase64, data.filename));
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+      return "FAQ資料を生成し、ダウンロードリンクを表示しました。";
+    }
+    return "資料の生成に失敗しました: " + (data.error || "不明なエラー");
+  }catch(e){
+    return "資料の生成中にエラーが発生しました: " + e.message;
+  }
+}
+async function applyChatDisplayChange(displayName, bgColor, textColor){
+  const ok = await updateCustomerRecord({ chatDisplayName: displayName, chatTheme: { bgColor, textColor } });
+  return ok ? `チャット名を「${displayName}」に変更しました。` : "変更に失敗しました。";
+}
+
+document.getElementById('chatNameChangeBtn').addEventListener('click', async () => {
+  const newName = prompt('新しいチャット名を入力してください');
+  if(!newName) return;
+  const bg = prompt('背景色を選んでください(white または black)', 'white');
+  if(!bg) return;
+  const textColor = prompt('文字色を選んでください(black/blue/yellow/red/orange/green)', 'black');
+  if(!textColor) return;
+  const pw = prompt('確認のため、ログインパスワードを入力してください');
+  if(pw !== currentCustomer.password){ alert('パスワードが違います'); return; }
+  const resultText = await applyChatDisplayChange(newName, bg, textColor);
+  alert(resultText);
+});
+
 async function saveProgress(){
   // これまでの会話をfaqDraftとしてそのまま保存しておく(簡易版:あとで整形して使う想定)
   const faqDraft = conversationHistory.map(m => {
@@ -289,6 +464,20 @@ async function saveProgress(){
     return `${speaker}: ${content}`;
   }).join('\n');
 
+  // 次回ログイン時に会話を再開できるよう、添付ファイルの中身(base64)は
+  // 軽いプレースホルダーに置き換えた上で、会話履歴そのものも保存しておく
+  const sanitizedHistory = conversationHistory.map(m => {
+    if(Array.isArray(m.content)){
+      return {
+        role: m.role,
+        content: m.content.map(b => (b.type === 'image' || b.type === 'document')
+          ? { type: 'text', text: '[以前添付されたファイル(内容は保存されていません)]' }
+          : b)
+      };
+    }
+    return m;
+  });
+
   try{
     await fetch(CUSTOMER_ENDPOINT, {
       method: "POST",
@@ -297,7 +486,7 @@ async function saveProgress(){
         action: 'update',
         id: currentCustomer.id,
         password: currentCustomer.password,
-        updates: { faqDraft }
+        updates: { faqDraft, setupConversationHistory: JSON.stringify(sanitizedHistory) }
       })
     });
   }catch(e){
@@ -587,15 +776,36 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
-    document.getElementById('headerName').textContent = currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe';
+    document.getElementById('headerName').textContent = currentCustomer.chatDisplayName || (currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe');
     document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
-    document.getElementById('statusBadge').textContent = currentCustomer.status || 'setup';
+    document.getElementById('statusBadge').textContent = currentCustomer.published ? 'live' : (currentCustomer.status || 'setup');
 
-    // 既存の会話ログがあれば復元し、続きから始める
-    if(currentCustomer.faqDraft){
-      addMessage('bot', 'おかえりなさい、続きから始めましょう。前回はここまで進んでいました。');
+    renderStageButtons();
+
+    // 既存の会話ログがあれば復元し、Zoe自身に前回の進捗を振り返ってもらう
+    let restoredHistory = null;
+    if(currentCustomer.setupConversationHistory){
+      try{ restoredHistory = JSON.parse(currentCustomer.setupConversationHistory); }catch(e){ restoredHistory = null; }
     }
-    addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+
+    if(restoredHistory && restoredHistory.length > 0){
+      conversationHistory = restoredHistory;
+      addMessage('bot', 'おかえりなさい、続きから始めましょう。');
+      showTyping();
+      try{
+        const summaryMessages = conversationHistory.concat([
+          { role: 'user', content: '(これはお客様には見えないシステムメッセージです。ここまでの進捗を3〜4行程度で簡潔に振り返り、続きとして何をすればよいか一言添えてください)' }
+        ]);
+        const result = await callZoe(summaryMessages);
+        hideTyping();
+        addMessage('bot', result.text);
+      }catch(e){
+        hideTyping();
+        addMessage('bot', '前回はここまで進んでいました。続きをお聞かせください。');
+      }
+    } else {
+      addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+    }
   }catch(e){
     errorEl.textContent = '通信エラーが発生しました';
   }
