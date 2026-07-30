@@ -236,6 +236,9 @@ async function callZoe(messages){
       })
     });
     const data = await response.json();
+    if(data.error){
+      throw new Error('APIエラー(status ' + response.status + '): ' + JSON.stringify(data.error));
+    }
 
     const toolUseBlocks = (data.content || []).filter(b => b.type === 'tool_use');
     if(toolUseBlocks.length > 0){
@@ -801,7 +804,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
         addMessage('bot', result.text);
       }catch(e){
         hideTyping();
-        addMessage('bot', '前回はここまで進んでいました。続きをお聞かせください。');
+        addMessage('bot', '[デバッグ] 進捗の振り返りでエラー: ' + e.message);
       }
     } else {
       showTyping();
@@ -812,7 +815,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
         conversationHistory = result.finalMessages.concat([{ role: 'assistant', content: result.text }]);
       }catch(e){
         hideTyping();
-        addMessage('bot', 'こんにちは、設定用Zoeです。まず、御社の事業内容や商品・サービスについて教えてください。');
+        addMessage('bot', '[デバッグ] 初回挨拶でエラー: ' + e.message);
       }
     }
   }catch(e){
