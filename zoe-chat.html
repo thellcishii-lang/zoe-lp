@@ -494,6 +494,7 @@ async function callZoe(messages){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mode: "zoe-chat",
+        adminPassword: new URLSearchParams(window.location.search).get('admin') || null,
         messages: currentMessages
       })
     });
