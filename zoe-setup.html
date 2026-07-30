@@ -160,6 +160,7 @@ const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
+let isAdminSession = false; // admin(運営)としてログインした場合はtrue。この間はお客様の進捗記録を一切保存しない
 const urlAdminPassword = new URLSearchParams(window.location.search).get('admin') || null;
 let conversationHistory = [];
 let isWaitingForResponse = false;
@@ -262,7 +263,7 @@ async function callZoe(messages){
         } else if(block.name === 'complete_stage2'){
           toolResultText = await completeStage2Tool();
         } else if(block.name === 'publish'){
-          toolResultText = await publishTool();
+          toolResultText = await publishTool(block.input);
         } else if(block.name === 'export_faq'){
           toolResultText = await exportFaqTool(block.input);
         } else if(block.name === 'update_chat_display'){
@@ -402,8 +403,9 @@ async function completeStage2Tool(){
   renderStageButtons();
   return ok ? "ステージ2を完了として記録しました。" : "記録に失敗しました。";
 }
-async function publishTool(){
-  const ok = await updateCustomerRecord({ published: true });
+async function publishTool(input){
+  const productionUrl = `https://the-chatbot.com/zoe-production.html?id=${currentCustomer.id}`;
+  const ok = await updateCustomerRecord({ published: true, productionKnowledge: (input && input.knowledge) || '' });
   renderStageButtons();
   if(!ok) return "記録に失敗しました。";
   try{
@@ -412,12 +414,12 @@ async function publishTool(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         to: currentCustomer.email,
-        subject: "【the.chatBOT】公開手続きのご案内",
-        text: `${currentCustomer.customerName || 'お客様'} 様\n\n公開手続きを承りました。埋め込み用のコード・設置手順は、担当者より追ってご案内いたします。\n\nthe.chatBOT`
+        subject: "【the.chatBOT】公開のご案内",
+        text: `${currentCustomer.customerName || 'お客様'} 様\n\n公開手続きが完了いたしました。\n\n以下が本番チャットのリンクです。サイトの任意の場所にリンクとして貼り付けていただくか、お客様にそのままお送りください。\n${productionUrl}\n\n公開を停止したい場合は、サイト側でこのリンクを外してください。\n\nthe.chatBOT`
       })
     });
   }catch(e){}
-  return "公開処理を行い、案内メールを送信しました。";
+  return `公開処理を行い、本番チャットのリンク(${productionUrl})を案内メールでお送りしました。`;
 }
 async function exportFaqTool(input){
   try{
@@ -476,6 +478,9 @@ document.getElementById('chatNameChangeBtn').addEventListener('click', async () 
 });
 
 async function saveProgress(){
+  if(isAdminSession){
+    return; // admin入室中は、お客様自身の進捗記録を上書きしない(履歴として残さない)
+  }
   // これまでの会話をfaqDraftとしてそのまま保存しておく(簡易版:あとで整形して使う想定)
   const faqDraft = conversationHistory.map(m => {
     const speaker = m.role === 'user' ? 'お客様' : 'Zoe';
@@ -799,6 +804,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       return;
     }
     currentCustomer = data.record;
+    isAdminSession = data.loggedInAs === 'admin';
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
