@@ -157,6 +157,7 @@
 
 <script>
 const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
+const CHAT_STREAM_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat-stream";
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
@@ -220,11 +221,70 @@ async function sendQuestionsFileTool(input){
   }
 }
 
+// chat-stream.js(ストリーミング配信)から届くNDJSON(Anthropicのイベントを1行1JSONに
+// したもの)を読み取り、通常のAPIレスポンスと同じ形の content 配列を組み立てる。
+// これにより、資料読み込みなど時間のかかるやり取りでも「30秒で通信エラー」に
+// ならず、少しずつ届くデータをそのまま繋ぎ合わせて最後まで受け取れる
+async function readStreamToContent(response){
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const blocks = []; // index -> {type, text, id, name, input, _partialJson}
+
+  function ensureBlock(index, block){
+    if(!blocks[index]){
+      if(block.type === 'text'){
+        blocks[index] = { type: 'text', text: '' };
+      } else if(block.type === 'tool_use'){
+        blocks[index] = { type: 'tool_use', id: block.id, name: block.name, input: {}, _partialJson: '' };
+      }
+    }
+    return blocks[index];
+  }
+
+  while(true){
+    const { done, value } = await reader.read();
+    if(done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while((idx = buffer.indexOf('\n')) !== -1){
+      const line = buffer.slice(0, idx).trim();
+      buffer = buffer.slice(idx + 1);
+      if(!line) continue;
+      let evt;
+      try{ evt = JSON.parse(line); }catch(e){ continue; }
+
+      if(evt.type === 'error'){
+        throw new Error(evt.error || 'ストリーム中にエラーが発生しました');
+      }
+      if(evt.type === 'content_block_start'){
+        ensureBlock(evt.index, evt.content_block);
+      } else if(evt.type === 'content_block_delta'){
+        const b = blocks[evt.index];
+        if(!b) continue;
+        if(evt.delta.type === 'text_delta'){
+          b.text += evt.delta.text;
+        } else if(evt.delta.type === 'input_json_delta'){
+          b._partialJson += evt.delta.partial_json || '';
+        }
+      } else if(evt.type === 'content_block_stop'){
+        const b = blocks[evt.index];
+        if(b && b.type === 'tool_use'){
+          try{ b.input = b._partialJson ? JSON.parse(b._partialJson) : {}; }catch(e){ b.input = {}; }
+          delete b._partialJson;
+        }
+      }
+      // message_start / message_delta / message_stop はcontent組み立てには使わない
+    }
+  }
+  return blocks.filter(Boolean);
+}
+
 async function callZoe(messages){
   let currentMessages = messages.slice();
 
   while(true){
-    const response = await fetch(CHAT_ENDPOINT, {
+    const response = await fetch(CHAT_STREAM_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -240,10 +300,13 @@ async function callZoe(messages){
         messages: currentMessages
       })
     });
-    const data = await response.json();
-    if(data.error){
-      throw new Error('APIエラー(status ' + response.status + '): ' + JSON.stringify(data.error));
+    if(!response.ok){
+      let errBody = null;
+      try{ errBody = await response.json(); }catch(e){}
+      throw new Error('APIエラー(status ' + response.status + '): ' + JSON.stringify(errBody));
     }
+    const content = await readStreamToContent(response);
+    const data = { content };
 
     const toolUseBlocks = (data.content || []).filter(b => b.type === 'tool_use');
     if(toolUseBlocks.length > 0){
