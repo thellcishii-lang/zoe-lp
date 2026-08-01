@@ -152,6 +152,7 @@
     <button id="stage1Btn" style="flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;">ステージ1</button>
     <button id="stage2Btn" style="display:none;flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;">ステージ2</button>
     <button id="publishBtn" style="display:none;flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;background:#ffb020;color:#fff;">公開</button>
+    <button id="specBtn" style="display:none;flex:1;border:none;border-radius:9px;padding:10px 8px;font-weight:700;font-size:13px;cursor:pointer;position:relative;">現在の仕様<span id="specQueueBadge" style="display:none;position:absolute;top:-8px;right:-6px;background:var(--panel);color:#ff5c5c;font-size:11px;font-weight:800;padding:1px 6px;border-radius:10px;border:1px solid #ff5c5c;"></span></button>
   </div>
 </div>
 
@@ -403,20 +404,30 @@ function renderStageButtons(){
   const s1 = document.getElementById('stage1Btn');
   const s2 = document.getElementById('stage2Btn');
   const pub = document.getElementById('publishBtn');
+  const spec = document.getElementById('specBtn');
   bar.style.display = 'flex';
 
   if(currentCustomer.stage1Complete){
+    // 完了後は小さい四角(✓)にして左に寄せ、他のボタンを目立たせる
     s1.style.background = '#4d9cff';
     s1.style.color = '#fff';
+    s1.style.flex = '0 0 40px';
+    s1.style.fontSize = '16px';
+    s1.textContent = '✓';
     s1.disabled = true;
     s2.style.display = 'block';
     pub.style.display = 'block';
+    spec.style.display = 'block';
   } else {
     s1.style.background = '#ffb020';
     s1.style.color = '#fff';
+    s1.style.flex = '1';
+    s1.style.fontSize = '13px';
+    s1.textContent = 'ステージ1';
     s1.disabled = false;
     s2.style.display = 'none';
     pub.style.display = 'none';
+    spec.style.display = 'none';
   }
 
   if(currentCustomer.stage2Complete){
@@ -432,7 +443,50 @@ function renderStageButtons(){
     s2.style.color = '#fff';
     s2.textContent = 'ステージ2';
   }
+
+  renderSpecButton();
 }
+
+function renderSpecButton(){
+  const spec = document.getElementById('specBtn');
+  const badge = document.getElementById('specQueueBadge');
+  const status = currentCustomer.specStatus || 'idle';
+  if(status === 'updating'){
+    spec.style.background = '#ffb020';
+    spec.style.color = '#fff';
+    const count = currentCustomer.specQueueCount || 0;
+    if(count > 0){
+      badge.style.display = 'block';
+      badge.textContent = String(count);
+    } else {
+      badge.style.display = 'none';
+    }
+  } else {
+    spec.style.background = '#4d9cff';
+    spec.style.color = '#fff';
+    badge.style.display = 'none';
+  }
+}
+
+// 現在の仕様の状態(updating/idle、待ち件数)を定期的に確認する。
+// 生成自体はバックグラウンド(update-spec.js)で行われるため、ここでは状態を見に行くだけ
+async function pollSpecStatus(){
+  if(!currentCustomer || !currentCustomer.id) return;
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'check', id: currentCustomer.id })
+    });
+    if(res.ok){
+      const data = await res.json();
+      currentCustomer.specStatus = data.specStatus;
+      currentCustomer.specQueueCount = data.specQueueCount;
+      if(currentCustomer.stage1Complete) renderSpecButton();
+    }
+  }catch(e){ /* ポーリング失敗は無視して次回に任せる */ }
+}
+setInterval(pollSpecStatus, 30000);
 
 document.getElementById('stage1Btn').addEventListener('click', () => {
   if(currentCustomer.stage1Complete) return;
@@ -444,6 +498,43 @@ document.getElementById('stage2Btn').addEventListener('click', () => {
 });
 document.getElementById('publishBtn').addEventListener('click', () => {
   sendMessage('公開したいです');
+});
+document.getElementById('specBtn').addEventListener('click', async () => {
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'getSpecDoc', id: currentCustomer.id, password: currentCustomer.password })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      alert('取得に失敗しました: ' + (data.error || '不明なエラー'));
+      return;
+    }
+    currentCustomer.specStatus = data.specStatus;
+    currentCustomer.specQueueCount = data.specQueueCount;
+    renderSpecButton();
+    if(!data.specDocBase64){
+      alert('まだ資料が生成されていません。しばらく経ってからもう一度お試しください。');
+      return;
+    }
+    const filename = data.specDocFilename || '現在の仕様.docx';
+    const byteChars = atob(data.specDocBase64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert('通信エラーが発生しました: ' + e.message);
+  }
 });
 
 async function completeStage1Tool(){
@@ -580,7 +671,7 @@ async function saveProgress(){
         action: 'update',
         id: currentCustomer.id,
         password: currentCustomer.password,
-        updates: { faqDraft, setupConversationHistory: JSON.stringify(sanitizedHistory) }
+        updates: { faqDraft, setupConversationHistory: JSON.stringify(sanitizedHistory), lastMessageAt: new Date().toISOString() }
       })
     });
   }catch(e){
@@ -777,7 +868,22 @@ async function sendMessage(text){
     const result = await callZoe(conversationHistory);
     hideTyping();
     addMessage('bot', result.text);
-    conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
+    // 添付ファイル(画像・PDF)の中身は、一度Zoeに見せたら以降の会話履歴には
+    // 残さない(プレースホルダーに置き換える)。そうしないと、その後の
+    // やり取り全てで同じファイルの中身を毎回送り直すことになり、
+    // セッションが長くなるほどAPIコストが雪だるま式に膨らんでしまうため
+    const strippedMessages = result.finalMessages.map(m => {
+      if(Array.isArray(m.content)){
+        return {
+          role: m.role,
+          content: m.content.map(b => (b.type === 'image' || b.type === 'document')
+            ? { type: 'text', text: '[以前添付されたファイル(内容は展開済み。以降の会話には残していません)]' }
+            : b)
+        };
+      }
+      return m;
+    });
+    conversationHistory = strippedMessages.concat([{role:'assistant', content: result.text}]);
     saveProgress();
   }catch(e){
     hideTyping();
