@@ -436,6 +436,21 @@ async function sendSecretaryMessage(){
       });
       area.scrollTop = area.scrollHeight;
     }
+    // 添付ファイル(画像・PDF)の中身は、一度Zoeに見せたら以降の会話履歴には
+    // 残さない(プレースホルダーに置き換える)。そうしないと、その後の
+    // やり取り全てで同じファイルの中身を毎回送り直すことになり、
+    // セッションが長くなるほどAPIコストが雪だるま式に膨らんでしまうため
+    secretaryConversation = secretaryConversation.map(m => {
+      if(Array.isArray(m.content)){
+        return {
+          role: m.role,
+          content: m.content.map(b => (b.type === 'image' || b.type === 'document')
+            ? { type: 'text', text: '[以前添付されたファイル(内容は展開済み。以降の会話には残していません)]' }
+            : b)
+        };
+      }
+      return m;
+    });
     secretaryConversation.push({ role: 'assistant', content: finalText });
   }catch(e){
     addSecMessage('bot', '通信エラーが発生しました: ' + e.message);
@@ -445,15 +460,10 @@ async function sendSecretaryMessage(){
 }
 
 document.getElementById('secSendBtn').addEventListener('click', sendSecretaryMessage);
-const isTouchDeviceSec = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+// Enterキーでは送信しない(IMEの変換確定のEnterで誤送信されるのを防ぐため)。
+// 送信は必ず送信ボタンから行う。Shift+Enter・通常のEnterともに改行として扱う
 document.getElementById('secInput').addEventListener('keydown', (e) => {
-  if(e.key === 'Enter' && !e.shiftKey){
-    if(isTouchDeviceSec){
-      return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
-    }
-    e.preventDefault();
-    sendSecretaryMessage();
-  }
+  // 何もしない(デフォルトの改行動作のみ)
 });
 </script>
 </body>
