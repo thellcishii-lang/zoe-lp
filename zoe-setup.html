@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>設定用Zoe | the.chatBOT</title>
+<title>AI Console | the.chatBOT</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -103,7 +103,7 @@
 
 <div id="loginScreen">
   <div class="login-box">
-    <h1>設定用Zoe</h1>
+    <h1>AI Console</h1>
     <div class="sub">発行されたIDとパスワードでログインしてください。ここでZoeに御社の情報を教えると、本番用のFAQを一緒に育てられます。</div>
     <input id="loginId" placeholder="ID(6桁)">
     <input id="loginPw" placeholder="パスワード">
@@ -117,7 +117,7 @@
     <div class="header-left">
       <div class="avatar">Z</div>
       <div>
-        <div class="header-name" id="headerName">設定用Zoe</div>
+        <div class="header-name" id="headerName">AI Console</div>
         <div class="header-sub" id="headerId"></div>
       </div>
     </div>
@@ -157,9 +157,8 @@
 </div>
 
 <script>
-const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
-const CHAT_STREAM_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat-stream";
-const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
+const CHAT_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/chat";
+const CUSTOMER_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/customer";
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
 let isAdminSession = false; // admin(運営)としてログインした場合はtrue。この間はお客様の進捗記録を一切保存しない
@@ -173,7 +172,7 @@ const sendBtn = document.getElementById('sendBtn');
 
 async function sendEmailTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input)
@@ -207,7 +206,7 @@ async function sendQuestionsFileTool(input){
   }
 
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-questions-pdf", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-questions-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input)
@@ -222,70 +221,11 @@ async function sendQuestionsFileTool(input){
   }
 }
 
-// chat-stream.js(ストリーミング配信)から届くNDJSON(Anthropicのイベントを1行1JSONに
-// したもの)を読み取り、通常のAPIレスポンスと同じ形の content 配列を組み立てる。
-// これにより、資料読み込みなど時間のかかるやり取りでも「30秒で通信エラー」に
-// ならず、少しずつ届くデータをそのまま繋ぎ合わせて最後まで受け取れる
-async function readStreamToContent(response){
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  const blocks = []; // index -> {type, text, id, name, input, _partialJson}
-
-  function ensureBlock(index, block){
-    if(!blocks[index]){
-      if(block.type === 'text'){
-        blocks[index] = { type: 'text', text: '' };
-      } else if(block.type === 'tool_use'){
-        blocks[index] = { type: 'tool_use', id: block.id, name: block.name, input: {}, _partialJson: '' };
-      }
-    }
-    return blocks[index];
-  }
-
-  while(true){
-    const { done, value } = await reader.read();
-    if(done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let idx;
-    while((idx = buffer.indexOf('\n')) !== -1){
-      const line = buffer.slice(0, idx).trim();
-      buffer = buffer.slice(idx + 1);
-      if(!line) continue;
-      let evt;
-      try{ evt = JSON.parse(line); }catch(e){ continue; }
-
-      if(evt.type === 'error'){
-        throw new Error(evt.error || 'ストリーム中にエラーが発生しました');
-      }
-      if(evt.type === 'content_block_start'){
-        ensureBlock(evt.index, evt.content_block);
-      } else if(evt.type === 'content_block_delta'){
-        const b = blocks[evt.index];
-        if(!b) continue;
-        if(evt.delta.type === 'text_delta'){
-          b.text += evt.delta.text;
-        } else if(evt.delta.type === 'input_json_delta'){
-          b._partialJson += evt.delta.partial_json || '';
-        }
-      } else if(evt.type === 'content_block_stop'){
-        const b = blocks[evt.index];
-        if(b && b.type === 'tool_use'){
-          try{ b.input = b._partialJson ? JSON.parse(b._partialJson) : {}; }catch(e){ b.input = {}; }
-          delete b._partialJson;
-        }
-      }
-      // message_start / message_delta / message_stop はcontent組み立てには使わない
-    }
-  }
-  return blocks.filter(Boolean);
-}
-
 async function callZoe(messages){
   let currentMessages = messages.slice();
 
   while(true){
-    const response = await fetch(CHAT_STREAM_ENDPOINT, {
+    const response = await fetch(CHAT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -301,13 +241,10 @@ async function callZoe(messages){
         messages: currentMessages
       })
     });
-    if(!response.ok){
-      let errBody = null;
-      try{ errBody = await response.json(); }catch(e){}
-      throw new Error('APIエラー(status ' + response.status + '): ' + JSON.stringify(errBody));
+    const data = await response.json();
+    if(data.error){
+      throw new Error('APIエラー(status ' + response.status + '): ' + JSON.stringify(data.error));
     }
-    const content = await readStreamToContent(response);
-    const data = { content };
 
     const toolUseBlocks = (data.content || []).filter(b => b.type === 'tool_use');
     if(toolUseBlocks.length > 0){
@@ -563,7 +500,7 @@ async function publishTool(input){
   renderStageButtons();
   if(!ok) return "記録に失敗しました。";
   try{
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -577,7 +514,7 @@ async function publishTool(input){
 }
 async function exportFaqTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/generate-faq-document", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/generate-faq-document", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ customerName: currentCustomer.customerName, content: input.content })
@@ -762,13 +699,13 @@ async function sendEmailTestDirect(){
   }
   addMessage('bot', `${currentCustomer.email} 宛にテストメールを送信します...`);
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         to: currentCustomer.email,
         subject: "【テスト】設定画面からのメール送信テスト",
-        text: "これは設定用Zoeの画面からのテスト送信です。届いていれば成功です。"
+        text: "これはAI Consoleの画面からのテスト送信です。届いていれば成功です。"
       })
     });
     const data = await res.json();
@@ -977,7 +914,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
-    document.getElementById('headerName').textContent = currentCustomer.chatDisplayName || (currentCustomer.customerName ? currentCustomer.customerName + ' 様' : '設定用Zoe');
+    document.getElementById('headerName').textContent = currentCustomer.chatDisplayName || (currentCustomer.customerName ? currentCustomer.customerName + ' 様' : 'AI Console');
     document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
     document.getElementById('statusBadge').textContent = currentCustomer.published ? 'live' : (currentCustomer.status || 'setup');
 
