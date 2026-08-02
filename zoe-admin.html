@@ -84,11 +84,11 @@
 </div>
 
 <script>
-const ADMIN_LOGIN_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/admin-login";
-const REG_START_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/admin-webauthn-register-start";
-const REG_VERIFY_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/admin-webauthn-register-verify";
-const AUTH_START_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/admin-webauthn-auth-start";
-const AUTH_VERIFY_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/admin-webauthn-auth-verify";
+const ADMIN_LOGIN_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/admin-login";
+const REG_START_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/admin-webauthn-register-start";
+const REG_VERIFY_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/admin-webauthn-register-verify";
+const AUTH_START_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/admin-webauthn-auth-start";
+const AUTH_VERIFY_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/admin-webauthn-auth-verify";
 
 let enteredPassword = null;
 
@@ -250,8 +250,7 @@ document.getElementById('registerFaceIdBtn').addEventListener('click', async () 
 });
 
 // --- 秘書Zoeとのチャット ---
-const SECRETARY_CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
-const SECRETARY_CHAT_STREAM_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/secretary-stream";
+const SECRETARY_CHAT_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/chat";
 let secretaryConversation = [];
 
 // 簡易Markdownレンダリング(太字・表・箇条書きだけ対応。それ以外は元のテキストのまま)
@@ -365,67 +364,20 @@ async function sendSecretaryMessage(){
 
   try{
     const sessionToken = sessionStorage.getItem('adminSessionToken');
-    const res = await fetch(SECRETARY_CHAT_STREAM_ENDPOINT, {
+    const res = await fetch(SECRETARY_CHAT_ENDPOINT, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ mode: 'secretary', sessionToken, messages: secretaryConversation })
     });
-    if(!res.ok || !res.body){
-      let errBody = null;
-      try{ errBody = await res.json(); }catch(e){}
-      addSecMessage('bot', 'エラー: ' + ((errBody && errBody.error) || '不明なエラー'));
+    const data = await res.json();
+    if(!res.ok){
+      addSecMessage('bot', 'エラー: ' + (data.error || '不明なエラー'));
       sendBtn.disabled = false;
       return;
     }
-
-    // 応答用の吹き出しを先に用意し、テキストが少しずつ届くたびにその場で更新していく
-    const area = document.getElementById('secChatArea');
-    const botDiv = document.createElement('div');
-    botDiv.style.cssText = 'align-self:flex-start;max-width:88%;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;padding:11px 14px;font-size:14px;';
-    botDiv.innerHTML = '<span style="color:var(--text-dim);">…</span>';
-    area.appendChild(botDiv);
-    area.scrollTop = area.scrollHeight;
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let accumulatedText = '';
-    let finalContent = null;
-    let finalImages = [];
-
-    while(true){
-      const { done, value } = await reader.read();
-      if(done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx;
-      while((idx = buffer.indexOf('\n')) !== -1){
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
-        if(!line) continue;
-        let evt;
-        try{ evt = JSON.parse(line); }catch(e){ continue; }
-
-        if(evt.type === 'text_delta'){
-          accumulatedText += evt.text;
-          botDiv.innerHTML = renderSecMarkdown(accumulatedText);
-          area.scrollTop = area.scrollHeight;
-        } else if(evt.type === 'tool_status'){
-          botDiv.innerHTML = renderSecMarkdown(accumulatedText) + `<div style="color:var(--text-dim);font-size:12px;margin-top:6px;">(${evt.name} を実行中…)</div>`;
-          area.scrollTop = area.scrollHeight;
-        } else if(evt.type === 'final'){
-          finalContent = evt.content;
-          finalImages = evt.images || [];
-        } else if(evt.type === 'error'){
-          throw new Error(evt.error || 'ストリーム中にエラーが発生しました');
-        }
-      }
-    }
-
-    const textBlock = (finalContent || []).find(b => b.type === 'text');
-    const finalText = textBlock ? textBlock.text : accumulatedText;
-    botDiv.innerHTML = renderSecMarkdown(finalText);
-
-    if(Array.isArray(finalImages) && finalImages.length > 0){
-      finalImages.forEach(img => {
+    addSecMessage('bot', data.reply);
+    if(Array.isArray(data.images) && data.images.length > 0){
+      const area = document.getElementById('secChatArea');
+      data.images.forEach(img => {
         const wrap = document.createElement('div');
         wrap.style.cssText = 'align-self:flex-start;max-width:88%;';
         const el = document.createElement('img');
@@ -451,7 +403,7 @@ async function sendSecretaryMessage(){
       }
       return m;
     });
-    secretaryConversation.push({ role: 'assistant', content: finalText });
+    secretaryConversation.push({ role: 'assistant', content: data.reply });
   }catch(e){
     addSecMessage('bot', '通信エラーが発生しました: ' + e.message);
   }
