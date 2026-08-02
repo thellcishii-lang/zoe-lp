@@ -122,7 +122,6 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <button id="testMenuBtn" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;">✏️</button>
       <div class="status-badge" id="statusBadge">setup</div>
     </div>
   </header>
@@ -130,11 +129,6 @@
     <a href="https://the-chatbot.com/zoe-setup-manual.docx" target="_blank" style="color:var(--text-dim);font-size:12.5px;text-decoration:none;">取扱説明書</a>
     <button id="chatNameChangeBtn" style="background:none;border:none;color:var(--text-dim);font-size:12.5px;cursor:pointer;padding:4px 6px;">チャット名変更</button>
   </div>
-  <div id="testPasswordPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;">
-    <input id="testPasswordInput" type="password" placeholder="テストパスワード" style="width:160px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:7px;font-size:13px;margin-right:8px;">
-    <button id="testPasswordSubmit" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;cursor:pointer;">開く</button>
-  </div>
-  <div id="testMenuPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px;"></div>
   <div id="chatArea"></div>
   <div id="inputArea">
     <div id="filePreview">
@@ -619,17 +613,6 @@ async function saveProgress(){
 let attachedFile = null; // { name, mediaType, base64, kind: 'image'|'document' }
 let testMode = false; // trueの間はsend_questions_fileが実際に送信せず、チャットに表示+ダウンロードに切り替わる
 
-const TEST_ITEMS = {
-  downloadTest: {
-    label: "確認事項リストのダウンロードテスト",
-    run: runDownloadTest
-  },
-  emailTest: {
-    label: "メール送信テスト",
-    run: runEmailTest
-  }
-};
-
 function downloadDocxFile(base64, filename){
   const byteChars = atob(base64);
   const byteNumbers = new Array(byteChars.length);
@@ -660,120 +643,9 @@ function downloadTextFile(filename, content){
   return a;
 }
 
-async function runDownloadTest(){
-  testMode = true;
-  addMessage('bot', '[テスト: 確認事項リストのダウンロードテスト]\nZoeの判断を挟まず、ダウンロード機構だけを直接検証します。');
-
-  // Zoeにツール呼び出しを判断させず、固定のダミー確認事項(6件)で
-  // sendQuestionsFileTool() を直接呼び出し、ダウンロード機能自体の動作を検証する
-  const dummyInput = {
-    to: (currentCustomer && currentCustomer.email) || 'test@example.com',
-    title: 'テスト用 確認事項リスト',
-    questions: [
-      '冷蔵庫シリーズの型番ごとの保証期間を教えてください',
-      'フライヤーの納期は国内在庫と海外発注でそれぞれ何日程度ですか',
-      'シンクのサイズ展開は何種類ありますか',
-      '食洗機の設置工事は御社で対応していますか',
-      '製氷機のメンテナンス契約はありますか',
-      'コンベクションオーブンの電源仕様(単相/三相)を教えてください'
-    ]
-  };
-
-  try{
-    const result = await sendQuestionsFileTool(dummyInput);
-    addMessage('bot', result);
-  }catch(e){
-    addMessage('bot', 'テスト実行中にエラーが発生しました: ' + e.message);
-  }
-  testMode = false;
-}
-
-async function runEmailTest(){
-  addMessage('bot', '[テスト: メール送信テスト]\n「メールテスト送信」と入力すると、登録されているメールアドレス宛に実際にテストメールを送信します。');
-}
-
-async function sendEmailTestDirect(){
-  if(!currentCustomer || !currentCustomer.email){
-    addMessage('bot', 'このお客様には登録メールアドレスがありません(古いIDのため未登録の可能性があります)。');
-    return;
-  }
-  addMessage('bot', `${currentCustomer.email} 宛にテストメールを送信します...`);
-  try{
-    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: currentCustomer.email,
-        subject: "【テスト】設定画面からのメール送信テスト",
-        text: "これはAI Consoleの画面からのテスト送信です。届いていれば成功です。"
-      })
-    });
-    const data = await res.json();
-    if(res.ok && data.success){
-      addMessage('bot', '送信成功しました。届いているか確認してください。');
-    } else {
-      addMessage('bot', '送信に失敗しました: ' + (data.error || '不明なエラー'));
-    }
-  }catch(e){
-    addMessage('bot', '送信中にエラーが発生しました: ' + e.message);
-  }
-}
-
-function renderTestMenu(){
-  const panel = document.getElementById('testMenuPanel');
-  panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">テストしたい項目をタップしてください</div>';
-  Object.keys(TEST_ITEMS).forEach(key => {
-    const btn = document.createElement('button');
-    btn.textContent = TEST_ITEMS[key].label;
-    btn.style.cssText = 'display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:6px;cursor:pointer;';
-    btn.addEventListener('click', async () => {
-      document.getElementById('testMenuPanel').style.display = 'none';
-      isWaitingForResponse = true;
-      sendBtn.disabled = true;
-      await TEST_ITEMS[key].run();
-      isWaitingForResponse = false;
-      sendBtn.disabled = false;
-    });
-    panel.appendChild(btn);
-  });
-}
-
-document.getElementById('testMenuBtn').addEventListener('click', () => {
-  const pwPanel = document.getElementById('testPasswordPanel');
-  const menuPanel = document.getElementById('testMenuPanel');
-  if(menuPanel.style.display === 'block'){
-    menuPanel.style.display = 'none';
-    return;
-  }
-  pwPanel.style.display = pwPanel.style.display === 'none' ? 'block' : 'none';
-});
-
-document.getElementById('testPasswordSubmit').addEventListener('click', () => {
-  const pw = document.getElementById('testPasswordInput').value;
-  if(pw === '9999'){
-    document.getElementById('testPasswordPanel').style.display = 'none';
-    document.getElementById('testPasswordInput').value = '';
-    renderTestMenu();
-    document.getElementById('testMenuPanel').style.display = 'block';
-  } else {
-    alert('パスワードが違います');
-  }
-});
-
 async function sendMessage(text){
   if((!text && !attachedFile) || isWaitingForResponse) return;
 
-  if((text || '').trim() === 'メールテスト送信'){
-    userInput.value = '';
-    autoResize();
-    addMessage('user', text);
-    isWaitingForResponse = true;
-    sendBtn.disabled = true;
-    await sendEmailTestDirect();
-    isWaitingForResponse = false;
-    sendBtn.disabled = false;
-    return;
-  }
 
   isWaitingForResponse = true;
   sendBtn.disabled = true;
