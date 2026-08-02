@@ -130,7 +130,11 @@ document.getElementById('pwSubmitBtn').addEventListener('click', async () => {
       body: JSON.stringify({ password })
     });
     const data = await res.json();
-    if(!res.ok){ msgEl.textContent = data.error || 'ログインに失敗しました'; msgEl.className='msg error'; return; }
+    if(!res.ok){
+      let msg = data.error || 'ログインに失敗しました';
+      if(data.debug){ msg += ' [診断: 受信' + data.debug.receivedLength + '文字 / 保存済み' + data.debug.storedLength + '文字 / trim一致:' + data.debug.matchesWhenTrimmed + ' / 保存が空:' + data.debug.storedIsEmpty + ']'; }
+      msgEl.textContent = msg; msgEl.className='msg error'; return;
+    }
     enteredPassword = password;
     showStep('stepFaceId');
   }catch(e){
