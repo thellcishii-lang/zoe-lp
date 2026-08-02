@@ -135,8 +135,14 @@ document.getElementById('pwSubmitBtn').addEventListener('click', async () => {
       if(data.debug){ msg += ' [診断: 受信' + data.debug.receivedLength + '文字 / 保存済み' + data.debug.storedLength + '文字 / trim一致:' + data.debug.matchesWhenTrimmed + ' / 保存が空:' + data.debug.storedIsEmpty + ']'; }
       msgEl.textContent = msg; msgEl.className='msg error'; return;
     }
+    // 【一時措置・2026年8月2日】Face ID周りの不具合切り分けが終わるまでの間、
+    // パスワードが通った時点で発行されたセッションをそのまま使い、
+    // Face IDのステップを飛ばしてチャット画面に進む。原因が分かり次第、
+    // 元の showStep('stepFaceId') に戻すこと
     enteredPassword = password;
-    showStep('stepFaceId');
+    sessionStorage.setItem('adminSessionToken', data.sessionToken);
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('chatScreen').style.display = 'block';
   }catch(e){
     msgEl.textContent = '通信エラーが発生しました';
     msgEl.className = 'msg error';
