@@ -683,10 +683,10 @@ fetch("https://thechatbot-proxy.vercel.app/api/track-event", {
       conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
     }catch(e){
       hideTyping();
-      addMessage('bot', 'こんにちは、Zoeです。the.chatBOT Zoeの導入をお考えでしょうか?');
+      addMessage('bot', '申し訳ございません。途切れてしましました。');
     }
   } else {
-    addMessage('bot', 'こんにちは、Zoeです。the.chatBOT Zoeの導入をお考えでしょうか?');
+    addMessage('bot', 'この度は、the.chatBOT Zoeにお問い合わせ頂き誠に有難うございます。<br>わたくしZoe(ゾーイ)がご質問を受け賜わらせて頂きます。どうぞよろしくお願い申し上げます。<br>この度のお問い合わせは導入をご検討されているということでよろしいでしょうか？');
   }
 })();
 </script>
