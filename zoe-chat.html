@@ -228,7 +228,7 @@ function setQuickReplies(options){
 
 async function verifyUrlTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/verify-url", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/verify-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: input.url, customerName: input.customerName })
@@ -251,7 +251,7 @@ async function verifyUrlTool(input){
 
 async function checkLeadEmailTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/customer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: 'findByEmail', email: input.email })
@@ -268,7 +268,7 @@ async function checkLeadEmailTool(input){
 
 async function upsertLeadTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/customer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: 'upsertLead', ...input })
@@ -381,7 +381,7 @@ async function renderApplicationPreviewImage(data){
 
 async function generateApplicationTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/generate-application", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/generate-application", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input)
@@ -423,7 +423,7 @@ async function generateApplicationTool(input){
 
 async function createCustomerTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/customer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -440,7 +440,7 @@ async function createCustomerTool(input){
       // 直近で生成した申込書(ファイル・プレビュー画像)を、新しく発行したIDのレコードに紐づけて保存する。
       // これにより、後で黄色い申込み画面(zoe-setup.html)を開いた時に、全く同じものを表示できる。
       if(lastApplicationFile || lastApplicationPreviewImage){
-        await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/customer", {
+        await fetch("https://thechatbot-proxy.vercel.app/api/customer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -470,7 +470,7 @@ async function sendEmailTool(input){
     if(lastApplicationFile){
       body.attachments = [{ filename: lastApplicationFile.filename, content: lastApplicationFile.base64 }];
     }
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -489,7 +489,7 @@ async function callZoe(messages){
   let currentMessages = messages.slice();
 
   while(true){
-    const response = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/chat", {
+    const response = await fetch("https://thechatbot-proxy.vercel.app/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -606,7 +606,7 @@ const prefillMsg = urlParams.get('msg');
 
 async function lookupRecall(company, person){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/recall", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/recall", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: 'lookup', company, person })
@@ -620,7 +620,7 @@ async function lookupRecall(company, person){
 
 async function saveRecall(company, person, firstTopic){
   try{
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/recall", {
+    await fetch("https://thechatbot-proxy.vercel.app/api/recall", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: 'save', company, person, firstTopic })
@@ -653,7 +653,7 @@ function buildContextLine(pastRecord){
 }
 
 // アクセス統計:このチャット画面が開かれるたびに1回記録する(失敗しても会話には影響させない)
-fetch("https://chatbot-proxy.netlify.app/.netlify/functions/track-event", {
+fetch("https://thechatbot-proxy.vercel.app/api/track-event", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ type: "chat_start", botId: "Zoe001" })
@@ -683,12 +683,10 @@ fetch("https://chatbot-proxy.netlify.app/.netlify/functions/track-event", {
       conversationHistory = result.finalMessages.concat([{role:'assistant', content: result.text}]);
     }catch(e){
       hideTyping();
-      addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
-      setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+      addMessage('bot', 'こんにちは、Zoeです。the.chatBOT Zoeの導入をお考えでしょうか?');
     }
   } else {
-    addMessage('bot', 'こんにちは、Zoeです。御社の業務について、簡単にお話を伺えればと思います。まず、どんなお仕事をされてますか?');
-    setQuickReplies(['美容・サロン系', '製造・卸・物販系', 'その他の業種']);
+    addMessage('bot', 'こんにちは、Zoeです。the.chatBOT Zoeの導入をお考えでしょうか?');
   }
 })();
 </script>
