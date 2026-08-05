@@ -156,6 +156,11 @@
 <script>
 const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
 const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
+// テスト迂回コードの照合はVercel側のcustomer.jsで行う(新アクションはVercel版にのみ実装)
+const CUSTOMER_ENDPOINT_VERCEL = "https://thechatbot-proxy.vercel.app/api/customer";
+// 申込み画面のURLに ?tc=コード が付いている場合のみ、テスト迂回の照合を試みる。
+// 画面上に入力欄は出さないため、通常のお客様にはこの仕組みの存在自体が見えない。
+const TEST_BYPASS_CODE = (new URLSearchParams(location.search).get('tc') || '').trim();
 
 let currentCustomer = null; // {id, password, customerName, status, systemPrompt, faqDraft}
 // (このファイルは常に申込み受付モードで動作する)
@@ -275,6 +280,35 @@ async function submitApplication(){
     }
     currentCustomer.applicationSubmittedAt = new Date().toISOString();
 
+    // ▼ テスト迂回コードの照合(URLに ?tc= が付いている場合のみ)
+    //   照合はサーバー側(Vercelのcustomer.js)で行い、ここには成否しか返ってこない。
+    //   無効だった場合は何も表示せず、通常の決済案内フローへそのまま進む。
+    let bypassApplied = false;
+    if(TEST_BYPASS_CODE){
+      try{
+        const vres = await fetch(CUSTOMER_ENDPOINT_VERCEL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: 'redeemTestCode',
+            code: TEST_BYPASS_CODE,
+            id: currentCustomer.id,
+            customerName: currentCustomer.customerName,
+            email: currentCustomer.email
+          })
+        });
+        const vdata = await vres.json();
+        bypassApplied = !!(vres.ok && vdata.valid);
+      }catch(e){
+        bypassApplied = false;
+      }
+    }
+
+    if(bypassApplied){
+      await sendTestBypassMails();
+      return;
+    }
+
     const paymentLink = "https://square.link/u/3x6AttjU";
     const bodyText =
       `${currentCustomer.customerName || 'お客様'} 様\n\n` +
@@ -312,6 +346,59 @@ async function submitApplication(){
   }catch(e){
     addMessage('bot', '処理中にエラーが発生しました: ' + e.message);
   }
+}
+
+// テスト迂回が成立した場合に送るメール一式。
+// 通常フローとの違いは「決済リンクを載せない」ことだけで、以降の導線は本番と同一。
+async function sendTestBypassMails(){
+  const name = currentCustomer.customerName || 'お客様';
+
+  const acceptText =
+    `${name} 様\n\n` +
+    `お申込みを正式に受け付けました。\n\n` +
+    `※本件はテスト用の受付のため、お支払いのお手続きは不要です。\n\n` +
+    `the.chatBOT`;
+
+  const paidText =
+    `${name} 様\n\n` +
+    `ご入金を確認いたしました。導入受付が完了しましたので、ご案内いたします。\n\n` +
+    `以下がお客様専用の設定用チャットへのリンクです。\n` +
+    `https://the-chatbot.com/zoe-setup.html\n\n` +
+    `ID: ${currentCustomer.id}\n` +
+    `パスワード: (お申込み時にお送りしたものと同じです)\n\n` +
+    `まだお客様のサイトには掲載できません。まずは設定用チャットでの設定を完了させてください。\n\n` +
+    `the.chatBOT`;
+
+  if(currentCustomer.email){
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了のご案内(テスト)", text: acceptText })
+    }).catch(() => {});
+
+    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了のご案内", text: paidText })
+    }).catch(() => {});
+  }
+
+  await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to: "the.chatbot.zoe@gmail.com",
+      subject: "【テスト迂回・入金確認自動送信済み】" + (currentCustomer.customerName || currentCustomer.id),
+      text: `ID: ${currentCustomer.id}\n会社名: ${currentCustomer.customerName || ''}\nメール: ${currentCustomer.email || ''}\n\nテスト迂回コードにより決済を迂回し、設定用Zoeの案内メールを自動送信しました。`
+    })
+  }).catch(() => {});
+
+  addMessage('bot',
+    `お申込みありがとうございます。\n\n` +
+    `本件はテスト用の受付のため、お支払いのお手続きは不要です。\n` +
+    `設定用チャットのご案内をメールにてお送りしましたので、そちらからお進みください。\n\n` +
+    `本日は誠にありがとうございました。`
+  );
 }
 
 async function recordSubmissionTool(){
