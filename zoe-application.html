@@ -154,10 +154,8 @@
 </div>
 
 <script>
-const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
-const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
-// テスト迂回コードの照合はVercel側のcustomer.jsで行う(新アクションはVercel版にのみ実装)
-const CUSTOMER_ENDPOINT_VERCEL = "https://thechatbot-proxy.vercel.app/api/customer";
+const CHAT_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/chat";
+const CUSTOMER_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/customer";
 // 申込み画面のURLに ?tc=コード が付いている場合のみ、テスト迂回の照合を試みる。
 // 画面上に入力欄は出さないため、通常のお客様にはこの仕組みの存在自体が見えない。
 const TEST_BYPASS_CODE = (new URLSearchParams(location.search).get('tc') || '').trim();
@@ -286,7 +284,7 @@ async function submitApplication(){
     let bypassApplied = false;
     if(TEST_BYPASS_CODE){
       try{
-        const vres = await fetch(CUSTOMER_ENDPOINT_VERCEL, {
+        const vres = await fetch(CUSTOMER_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -320,13 +318,13 @@ async function submitApplication(){
       `the.chatBOT`;
 
     if(currentCustomer.email){
-      await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+      await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了・お支払いのご案内", text: bodyText })
       }).catch(() => {});
     }
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -370,20 +368,20 @@ async function sendTestBypassMails(){
     `the.chatBOT`;
 
   if(currentCustomer.email){
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了のご案内(テスト)", text: acceptText })
     }).catch(() => {});
 
-    await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to: currentCustomer.email, subject: "【the.chatBOT】お申込み受付完了のご案内", text: paidText })
     }).catch(() => {});
   }
 
-  await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+  await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -410,7 +408,7 @@ async function recordSubmissionTool(){
 
 async function sendEmailTool(input){
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input)
@@ -444,7 +442,7 @@ async function sendQuestionsFileTool(input){
   }
 
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-questions-pdf", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-questions-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input)
@@ -642,7 +640,7 @@ async function sendEmailTestDirect(){
   }
   addMessage('bot', `${currentCustomer.email} 宛にテストメールを送信します...`);
   try{
-    const res = await fetch("https://chatbot-proxy.netlify.app/.netlify/functions/send-email", {
+    const res = await fetch("https://thechatbot-proxy.vercel.app/api/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
