@@ -54,9 +54,9 @@
 </div>
 
 <script>
-const CUSTOMER_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/customer";
-const CHAT_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/chat";
-const TRACK_ENDPOINT = "https://chatbot-proxy.netlify.app/.netlify/functions/track-event";
+const CUSTOMER_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/customer";
+const CHAT_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/chat";
+const TRACK_ENDPOINT = "https://thechatbot-proxy.vercel.app/api/track-event";
 
 const customerId = new URLSearchParams(window.location.search).get('id');
 let conversationHistory = [];
