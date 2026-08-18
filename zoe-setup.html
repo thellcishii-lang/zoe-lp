@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Console | the.chatBOT</title>
+<title>DNA Console | the.chatBOT</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -103,7 +103,7 @@
 
 <div id="loginScreen">
   <div class="login-box">
-    <h1>AI Console</h1>
+    <h1>DNA Console</h1>
     <div class="sub">発行されたIDとパスワードでログインしてください。ここでZoeに御社の情報を教えると、本番用のFAQを一緒に育てられます。</div>
     <input id="loginId" placeholder="ID(6桁)">
     <input id="loginPw" placeholder="パスワード">
@@ -117,11 +117,17 @@
     <div class="header-left">
       <div class="avatar">Z</div>
       <div>
-        <div class="header-name" id="headerName">AI Console</div>
+        <div class="header-name" id="headerName">DNA Console</div>
         <div class="header-sub" id="headerId"></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
+      <div id="tokenUsageBar" style="display:none;align-items:center;gap:6px;" title="今月のご利用量">
+        <div style="width:70px;height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden;">
+          <div id="tokenUsageFill" style="height:100%;width:0%;background:#4a90e2;transition:width 0.3s;"></div>
+        </div>
+        <span id="tokenUsagePercent" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
       <div class="status-badge" id="statusBadge">setup</div>
     </div>
   </header>
@@ -327,6 +333,37 @@ async function updateCustomerRecord(updates){
     return true;
   }catch(e){
     return false;
+  }
+}
+
+// 今月のトークン使用量を取得し、ヘッダーのインジケーターに反映する。
+// 50%までブルー・75%までイエロー・75%超はレッド。
+async function loadTokenUsage(){
+  if(!currentCustomer || !currentCustomer.id) return;
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'getTokenUsage', id: currentCustomer.id, password: currentCustomer.password })
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+    const bar = document.getElementById('tokenUsageBar');
+    const fill = document.getElementById('tokenUsageFill');
+    const label = document.getElementById('tokenUsagePercent');
+    if(!bar || !fill || !label) return;
+
+    const percent = Math.min(data.percent, 100);
+    let color = '#4a90e2'; // ブルー(50%まで)
+    if(percent > 75){ color = '#e24a4a'; } // レッド
+    else if(percent > 50){ color = '#e2b34a'; } // イエロー
+
+    fill.style.width = percent + '%';
+    fill.style.background = color;
+    label.textContent = percent + '%';
+    bar.style.display = 'flex';
+  }catch(e){
+    // 取得に失敗しても、チャット自体の動作には影響させない
   }
 }
 
@@ -786,10 +823,11 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('chatScreen').style.display = 'flex';
-    document.getElementById('headerName').textContent = currentCustomer.chatDisplayName || (currentCustomer.customerName ? currentCustomer.customerName + ' 様' : 'AI Console');
+    document.getElementById('headerName').textContent = currentCustomer.chatDisplayName || (currentCustomer.customerName ? currentCustomer.customerName + ' 様' : 'DNA Console');
     document.getElementById('headerId').textContent = 'ID: ' + currentCustomer.id;
     document.getElementById('statusBadge').textContent = currentCustomer.published ? 'live' : (currentCustomer.status || 'setup');
 
+    loadTokenUsage();
     renderStageButtons();
 
     // 既存の会話ログがあれば復元し、Zoe自身に前回の進捗を振り返ってもらう
