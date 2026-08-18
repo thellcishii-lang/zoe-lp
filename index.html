@@ -127,6 +127,72 @@
   }
   .gate-box b{color:var(--amber);}
 
+  /* DIAGRAMS (shared) */
+  .dg{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:24px 20px;margin-top:18px;
+  }
+  .dg-label{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;
+    color:var(--text-dim);text-transform:uppercase;text-align:center;margin-bottom:6px;
+  }
+  .dg-title{font-family:'Shippori Mincho',serif;font-size:17px;text-align:center;margin:0 0 4px;color:var(--amber);}
+  .dg-title.neutral{color:var(--text);}
+  .dg-desc{font-size:12.5px;color:var(--text-dim);text-align:center;line-height:1.75;margin-bottom:20px;}
+
+  /* snowball (cost) diagram */
+  .dg-turns{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 4px 8px;border-bottom:1px solid var(--line);margin-bottom:8px;min-height:150px;}
+  .dg-turn{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;}
+  .dg-turn-stack{width:100%;max-width:54px;display:flex;flex-direction:column-reverse;gap:2px;}
+  .dg-seg{width:100%;border-radius:2px;}
+  .dg-seg.k{background:var(--amber-dim);border:1px solid rgba(255,149,36,0.4);}
+  .dg-seg.h{background:rgba(233,228,216,0.12);border:1px solid var(--line);}
+  .dg-turn-label{font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;}
+  .dg-turn-cost{font-size:11px;color:var(--amber-hot);font-weight:700;}
+  .dg-legend{display:flex;justify-content:center;gap:16px;font-size:11px;color:var(--text-dim);margin:10px 0 4px;}
+  .dg-legend span{display:flex;align-items:center;gap:5px;}
+  .dg-legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+  /* shelf diagram (RAG / SMAS) */
+  .dg-shelf-title{font-size:11px;color:var(--text-dim);margin-bottom:12px;display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;}
+  .dg-frags{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:16px;}
+  .dg-frag{aspect-ratio:1;background:var(--panel-2);border:1px solid var(--line);border-radius:3px;}
+  .dg-frag.on{background:var(--text-dim);opacity:0.55;}
+  .dg-blocks{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;}
+  .dg-block{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:9px 13px;font-size:12px;color:var(--text-dim);display:flex;justify-content:space-between;}
+  .dg-block.on{background:var(--amber);color:#1a0f00;border-color:var(--amber);font-weight:700;}
+  .dg-block .num{font-family:'JetBrains Mono',monospace;opacity:0.75;}
+  .dg-flow{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11.5px;flex-wrap:wrap;}
+  .dg-chip{background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:11px;color:var(--text-dim);}
+  .dg-chip.amb{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);}
+  .dg-arrow{color:var(--text-dim);font-size:14px;}
+  .dg-final{border-top:1px solid var(--line);padding-top:14px;margin-top:16px;font-size:13px;line-height:1.8;color:var(--text);text-align:center;}
+  .dg-final b{color:var(--amber);}
+  .dg-final.neutral b{color:var(--text);}
+  .dg-traits{list-style:none;margin:16px 0 0;padding:0;font-size:12px;line-height:1.85;color:var(--text-dim);}
+  .dg-traits li{padding-left:15px;position:relative;margin-bottom:5px;}
+  .dg-traits li::before{content:"–";position:absolute;left:0;color:var(--amber);}
+  .dg-traits.neutral li::before{color:var(--text-dim);}
+
+  /* flow diagram (DNA -> router -> agents) */
+  .dg-scroll{overflow-x:auto;padding-bottom:6px;}
+  .dg-flowchart{position:relative;width:820px;height:400px;margin:0 auto;}
+  .dg-node{position:absolute;border-radius:8px;padding:14px 16px;background:var(--panel-2);border:1px solid var(--line);}
+  .dg-node h4{margin:0 0 4px;font-size:14px;font-family:'Shippori Mincho',serif;}
+  .dg-node p{margin:0;font-size:11px;color:var(--text-dim);line-height:1.6;}
+  .dg-node .tag{display:inline-block;font-size:9.5px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:20px;margin-bottom:7px;background:var(--amber-dim);color:var(--amber);}
+  .dg-n-console{left:0;top:150px;width:180px;height:120px;display:flex;flex-direction:column;justify-content:center;}
+  .dg-n-router{left:280px;top:140px;width:180px;height:120px;display:flex;flex-direction:column;justify-content:center;border-color:var(--amber);}
+  .dg-n-agent{left:600px;width:220px;height:52px;display:flex;align-items:center;gap:9px;}
+  .dg-n-agent .num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--amber);background:var(--amber-dim);border:1px solid var(--amber);border-radius:4px;padding:3px 6px;flex-shrink:0;}
+  .dg-n-agent .name{font-size:11.5px;color:var(--text);}
+  .dg-n-agent .adesc{font-size:10px;color:var(--text-dim);}
+  .dg-a1{top:6px;} .dg-a2{top:92px;} .dg-a3{top:178px;} .dg-a4{top:264px;} .dg-a5{top:350px;}
+  .dg-connectors{position:absolute;top:0;left:0;width:820px;height:400px;pointer-events:none;}
+  .dg-connectors path{fill:none;stroke:var(--line);stroke-width:1.5;}
+  .dg-connectors path.amb{stroke:rgba(255,149,36,0.5);}
+  .dg-flownote{text-align:center;font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-top:4px;}
+
   /* PRICING */
   .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   @media(max-width:700px){.price-grid{grid-template-columns:1fr;}}
@@ -201,11 +267,91 @@
     <div class="eyebrow">AIチャットボットの仕組み</div>
     <h2>まずは仕組みを知ろう!</h2>
     <div class="section-lede">
-      AIチャットを導入するにあたり、まずは仕組みを理解することが大切です。<br><br>
-      普通は、自社にAIチャットボットを導入したら自社の製品に対して様々な質問に答えられるような、スーパー営業マンになるようにしたいと考えるかもしれません。<br><br>
-      しかし、その知識を入れるということは、プロンプトを入れるということになります。ここでよく耳にするプロンプトという言葉が出てきましたが、このプロンプトこそが、AIチャットボットを導入するにあたり最大の伴となります。<br><br>
-      ひとつのエージェントに様々なプロンプトで何にでも対応できるようにするというのは非常に理想的ではありますが、これが簡単ではありません。まず、そのプロンプトをあらゆる想定で作り込んでいく必要があります。ひとつの製品に対する質問を洗い出し、それに対応する答えを入れる。ひとつの製品にいくつもの質問がありますので、その作業は膨大なものになります。これをまずは手作業で行う必要があります。また、たとえそれが完成した時、更なる問題が浮上します。なぜなら、苦労してその膨大な知識を入れ込んだエージェントは、会話のたびにその重いデータを運びながら会話をします。会話に関係ない膨大なデータを運びながら、さらに会話データもそこに蓄積され、会話のたびに雪だるまのように膨れ上がります。<br><br>
-      イメージとしては、20ターンの会話をする頃には、ひとつの回答に100円の費用、もしくはそれ以上がかかってしまうケースも出てきます。これは大げさな話ではなく、賢い自社専用のAIチャットボットをひとつのエージェントに任せると、このような事態を招いてしまいます。
+      「①料金について②サービス内容③その他」から選ぶような、選択肢メニュー式のAIチャットボットは、もう一昔前の仕組みです。Zoeは会話そのもので意図を読み取り、想定外の質問にも自然に応じます。<br><br>
+      ただ、AIチャットに専門知識を答えさせるには、その知識をプロンプトとして持たせる必要があります。そして、持たせた知識も会話の履歴も、会話が終わるまで毎回まるごと運び続けることになります。知識が増え、会話が長くなるほど、コストは雪だるま式に膨らんでいきます。
+    </div>
+    <div class="dg">
+      <div class="dg-label">How AI Chat Works</div>
+      <div class="dg-title">知識を持たせるほど、会話は重くなる</div>
+      <div class="dg-desc">1つのエージェントに知識を持たせ続けると、会話が進むほど読み込む量が増えていきます</div>
+      <div class="dg-turns">
+        <div class="dg-turn">
+          <div class="dg-turn-stack" style="height:36px;"><div class="dg-seg h" style="height:7px;"></div><div class="dg-seg k" style="height:29px;"></div></div>
+          <div class="dg-turn-cost">数円</div><div class="dg-turn-label">1ターン目</div>
+        </div>
+        <div class="dg-turn">
+          <div class="dg-turn-stack" style="height:66px;"><div class="dg-seg h" style="height:24px;"></div><div class="dg-seg k" style="height:42px;"></div></div>
+          <div class="dg-turn-cost">十数円</div><div class="dg-turn-label">5ターン目</div>
+        </div>
+        <div class="dg-turn">
+          <div class="dg-turn-stack" style="height:100px;"><div class="dg-seg h" style="height:52px;"></div><div class="dg-seg k" style="height:48px;"></div></div>
+          <div class="dg-turn-cost">数十円</div><div class="dg-turn-label">10ターン目</div>
+        </div>
+        <div class="dg-turn">
+          <div class="dg-turn-stack" style="height:140px;"><div class="dg-seg h" style="height:90px;"></div><div class="dg-seg k" style="height:50px;"></div></div>
+          <div class="dg-turn-cost" style="font-size:12.5px;">100円超</div><div class="dg-turn-label">20ターン目</div>
+        </div>
+      </div>
+      <div class="dg-legend">
+        <span><i style="background:var(--amber);"></i>持たせている知識</span>
+        <span><i style="background:rgba(233,228,216,0.4);"></i>それまでの会話履歴</span>
+      </div>
+      <div class="dg-final">知識も履歴も、<b>一度乗せたら毎回運び続ける</b>。賢く・幅広く答えさせようとするほど、この雪だるまは大きくなる。</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">なぜRAGではなくSMASか</div>
+    <h2>知識が増えすぎる課題への、2つの解き方。</h2>
+    <div class="section-lede">
+      この「知識が増えるほど重くなる」という課題への一般的な解決策が、RAG(Retrieval-Augmented Generation)と呼ばれる仕組みです。知識を細かく分割し、質問に近い部分だけを都度検索して拾ってくることで、読み込む量を抑えます。
+    </div>
+    <div class="dg">
+      <div class="dg-label">Standard Approach</div>
+      <div class="dg-title neutral">RAG</div>
+      <div class="dg-desc">機械が知識を細切れに分割し、質問に近い断片を複数拾って組み合わせる</div>
+      <div class="dg-shelf-title"><span>棚 ― 機械的に分割された断片</span><span>N個の小さな棚</span></div>
+      <div class="dg-frags">
+        <div class="dg-frag"></div><div class="dg-frag on"></div><div class="dg-frag"></div><div class="dg-frag"></div>
+        <div class="dg-frag on"></div><div class="dg-frag"></div><div class="dg-frag"></div><div class="dg-frag"></div>
+        <div class="dg-frag"></div><div class="dg-frag"></div><div class="dg-frag on"></div><div class="dg-frag"></div>
+        <div class="dg-frag"></div><div class="dg-frag on"></div><div class="dg-frag"></div><div class="dg-frag"></div>
+      </div>
+      <div class="dg-flow">
+        <span class="dg-chip">類似度検索</span><span class="dg-arrow">→</span>
+        <span class="dg-chip">近い断片を複数拾う</span><span class="dg-arrow">→</span>
+        <span class="dg-chip">つなぎ合わせる</span>
+      </div>
+      <div class="dg-final neutral">質問 → <b>ベクトル距離で計算</b>し、近い断片だけを組み合わせて回答を生成</div>
+      <ul class="dg-traits neutral">
+        <li>専用データベース・検索の仕組みが新たに必要になる</li>
+        <li>知識を追加・変更するたびに、裏側で再構築の処理が発生する</li>
+      </ul>
+    </div>
+    <div class="section-lede" style="margin-top:26px;">
+      ただ、RAGには専用のデータベースや検索の仕組みが新たに必要になり、知識を追加・変更するたびに裏側で再構築の処理が発生します。Zoeでは、この課題に対して独自の「SMAS(Supervisor Multi-Agent System)」を採用しています。知識をトピックごとにまとまった単位で持たせ、質問に応じて担当のまとまりだけを呼び出す仕組みです。
+    </div>
+    <div class="dg">
+      <div class="dg-label">Zoe's Approach</div>
+      <div class="dg-title">SMAS</div>
+      <div class="dg-desc">人が意味のまとまりで棚を区切り、担当の棚をひとつ丸ごと取り出す</div>
+      <div class="dg-shelf-title"><span>棚 ― トピック単位のブロック</span><span>数個の大きな棚</span></div>
+      <div class="dg-blocks">
+        <div class="dg-block"><span class="num">10001</span><span>商品A担当</span></div>
+        <div class="dg-block on"><span class="num">10002</span><span>商品B担当</span></div>
+        <div class="dg-block"><span class="num">10003</span><span>サポート担当</span></div>
+        <div class="dg-block"><span class="num">10004</span><span>料金・契約担当</span></div>
+      </div>
+      <div class="dg-flow">
+        <span class="dg-chip amb">ルーターが1回判断</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">担当棚を1つ選ぶ</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">丸ごと使う</span>
+      </div>
+      <div class="dg-final">質問 → ルーターが<b>意味を読んで</b>担当の棚を1つ選び、その内容をそのまま回答に使う</div>
+      <ul class="dg-traits">
+        <li>専用データベース不要。新しいデータベースを必要としない</li>
+        <li>知識の追加・変更は、その場の会話でそのまま反映される</li>
+      </ul>
     </div>
   </section>
 
@@ -215,13 +361,64 @@
     <div class="section-lede">
       Zoeは、お客様が実際サイトなどで走らせる実装用のチャットボットと、そのチャットボットを操る「DNA Console」というチャットボットの、2層式で成り立っています。実装用チャットの設定・ログ管理など、DNA Consoleに聞きたい情報、プロンプトの変更なども、チャットの会話でスムーズに行えます。また、ひとつのユニットで、規模によりエージェントはいくつも増やせる仕組みとなっております。
     </div>
+    <div class="dg">
+      <div class="dg-label">Zoe's Architecture</div>
+      <div class="dg-title">DNA Console → 実装チャット → エージェント</div>
+      <div class="dg-desc">育てた知識は、ルーターを通って担当エージェントに枝分かれして使われます</div>
+      <div class="dg-scroll">
+        <div class="dg-flowchart">
+          <svg class="dg-connectors" viewBox="0 0 820 400">
+            <path d="M 180 210 C 220 210, 240 200, 280 200" />
+            <path class="amb" d="M 460 180 C 530 180, 530 32, 600 32" />
+            <path class="amb" d="M 460 190 C 530 190, 530 118, 600 118" />
+            <path class="amb" d="M 460 200 C 540 200, 540 204, 600 204" />
+            <path class="amb" d="M 460 210 C 530 210, 530 290, 600 290" />
+            <path class="amb" d="M 460 220 C 530 220, 530 376, 600 376" />
+          </svg>
+          <div class="dg-node dg-n-console">
+            <span class="tag">設定する層</span>
+            <h4>DNA Console</h4>
+            <p>担当者様と会話しながら、知識を育てる場所</p>
+          </div>
+          <div class="dg-node dg-n-router">
+            <span class="tag">ルーター</span>
+            <h4>実装チャット</h4>
+            <p>質問を読み、担当エージェントを1つ選んで呼び出す(SMAS)</p>
+          </div>
+          <div class="dg-node dg-n-agent dg-a1"><span class="num">10001</span><div><div class="name">商品Aエージェント</div><div class="adesc">商品Aの知識だけを保持</div></div></div>
+          <div class="dg-node dg-n-agent dg-a2"><span class="num">10002</span><div><div class="name">商品Bエージェント</div><div class="adesc">商品Bの知識だけを保持</div></div></div>
+          <div class="dg-node dg-n-agent dg-a3"><span class="num">10003</span><div><div class="name">サポートエージェント</div><div class="adesc">よくあるトラブル対応</div></div></div>
+          <div class="dg-node dg-n-agent dg-a4"><span class="num">10004</span><div><div class="name">料金・契約エージェント</div><div class="adesc">価格・契約条件を担当</div></div></div>
+          <div class="dg-node dg-n-agent dg-a5"><span class="num">10005</span><div><div class="name">+ 増設エージェント</div><div class="adesc">規模に応じていくつでも追加</div></div></div>
+        </div>
+      </div>
+      <div class="dg-flownote">DNA Console → 実装チャット(ルーター) → 担当エージェントへ枝分かれ</div>
+    </div>
   </section>
 
   <section>
     <div class="eyebrow">DNA Console搭載</div>
     <h2>チャットでプロンプトを生成。</h2>
     <div class="section-lede">
-      AIチャットの導入で、1番の難関がプロンプトをどうするか、プロンプトの作成がとても重要ですが、その作業が非常に大変な作業となっております。Zoeは独自開発のDNA(Design & Nurture Agent)システムが、現在お持ちの情報を読み込ませ、あとはチャットしているだけで、御社独自のプロンプトが完成します。全体プロンプトは、データとして常に引き出すことができます。これにより、御社のDNAを受け継ぐエージェントを誕生させることができるようになります。他にも、本日のチャット履歴や内容などを毎日自動でメールで報告させるなども可能となっております。他にも多彩な機能が満載です。ぜひ、Zoeに内容などをチャットで質問してみてください。
+      商品・サービスについて会話するだけで、御社独自のプロンプトが完成します。設定変更やログ確認も、すべて会話で行えます。
+    </div>
+    <div class="dg">
+      <div class="dg-label">Knowledge Builder</div>
+      <div class="dg-title">DNA Console</div>
+      <div class="dg-desc">会話しながら、御社独自の知識(プロンプト)を育てる場所</div>
+      <div class="dg-flow" style="margin-bottom:10px;">
+        <span class="dg-chip amb">商品・サービスを話す</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">FAQ叩き台を作成</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">すり合わせ</span>
+      </div>
+      <div style="text-align:center;">
+        <span class="dg-chip" style="border-style:dashed;">↻ 分からない点はその場で確認</span>
+      </div>
+      <div class="dg-final">会話するだけで、<b>御社専用のプロンプト</b>が完成していく</div>
+      <ul class="dg-traits">
+        <li>専門知識がなくても、話すだけで進められる</li>
+        <li>育てた知識は、そのままSMASの各エージェントに引き渡される</li>
+      </ul>
     </div>
   </section>
 
@@ -229,8 +426,29 @@
     <div class="eyebrow">SMAS Supervisor Multi-Agent System搭載</div>
     <h2>深い専門知識と、幅広い取扱商品を両立。</h2>
     <div class="section-lede">
-      受付のチャットボットやカスタマー対応でご利用いただく場合、あらゆる場面が想定されます。その質問に答えるにはそれだけの知識を埋め込む必要があります。しかし、ここにAIチャットの性質上、ひとつのエージェントに全ての知識を埋め込むと、データ使用コストが膨れ上がるという課題があります。<br><br>
-      Zoeでは独自のSMAS&DNAで、深い専門知識と幅広い取扱商品という、プロンプト分散システムで、深い専門知識と幅広い取扱商品を両立させ、データ使用コストも抑えることが可能になります。1ユニット導入すると、そこから業務の規模に合わせいくつものエージェントを作り出します。この仕組みを支えるのがDNA Consoleで、この作業を自動化。簡単チャットするだけで、膨大な商品にも対応することが可能となります。
+      育てた知識は、SMASの仕組みによってトピックごとのエージェントに分かれます。質問が来るたびに、担当のエージェントだけが呼び出されるので、幅広い知識を持たせてもコストは抑えられます。エージェントは規模に応じていくつでも増やせます。
+    </div>
+    <div class="dg">
+      <div class="dg-label">Zoe's Approach</div>
+      <div class="dg-title">SMAS</div>
+      <div class="dg-desc">人が意味のまとまりで棚を区切り、担当の棚をひとつ丸ごと取り出す</div>
+      <div class="dg-shelf-title"><span>棚 ― トピック単位のブロック</span><span>数個の大きな棚</span></div>
+      <div class="dg-blocks">
+        <div class="dg-block"><span class="num">10001</span><span>商品A担当</span></div>
+        <div class="dg-block on"><span class="num">10002</span><span>商品B担当</span></div>
+        <div class="dg-block"><span class="num">10003</span><span>サポート担当</span></div>
+        <div class="dg-block"><span class="num">10004</span><span>料金・契約担当</span></div>
+      </div>
+      <div class="dg-flow">
+        <span class="dg-chip amb">ルーターが1回判断</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">担当棚を1つ選ぶ</span><span class="dg-arrow">→</span>
+        <span class="dg-chip amb">丸ごと使う</span>
+      </div>
+      <div class="dg-final">質問 → ルーターが<b>意味を読んで</b>担当の棚を1つ選び、その内容をそのまま回答に使う</div>
+      <ul class="dg-traits">
+        <li>棚=トピックなので、番号を見れば中身が一覧で分かる</li>
+        <li>棚の数が少ないうちはコストも判断も軽い</li>
+      </ul>
     </div>
   </section>
 
@@ -265,33 +483,6 @@
     <div class="section-lede">
       このZoeのシステムと同じようなシステムを構築した場合、規模にもよりますが、およそ1,000万から3,000万の費用が予想されるとの回答が、各AIで算出した場合に出ております。<br><br>
       the.chatBOT Zoeにおきましては、本来であればリース案件になるようなシステムですが、これを現在導入費用0円、月額30万円(税別)、期間縛りなしのレンタルとして出しております。導入費用に関しましては、本来頂きたいのですが、今のところは導入費用0円にて実施させていただいております。
-    </div>
-  </section>
-
-  <section>
-    <div class="eyebrow">よくある違い</div>
-    <h2>「選択肢メニュー」と「会話」の差。</h2>
-    <div class="section-lede">
-      従来のAIチャットボットは、FAQをそのままチャットに要約しただけで、想定外の質問には対応できません。Zoeは、人が対応するのと遜色ない受け答えを目指して開発された、次世代のチャットボットです。
-    </div>
-    <div class="chat-mock">
-      <div class="chat-mock-header">
-        <div class="chat-mock-avatar">✕</div>
-        <div class="chat-mock-name">よくあるチャットボット</div>
-      </div>
-      <div class="chat-line user">なんか良い感じにしてほしいんだけど</div>
-      <div class="chat-line bot">申し訳ございません、理解できませんでした。以下からお選びください。<br>①料金について②サービス内容③その他</div>
-    </div>
-    <div class="chat-mock" style="margin-top:14px;">
-      <div class="chat-mock-header">
-        <div class="chat-mock-avatar">Z</div>
-        <div class="chat-mock-name">Zoe</div>
-      </div>
-      <div class="chat-line user">なんか良い感じにしてほしいんだけど</div>
-      <div class="chat-line bot">「良い感じ」というと、見た目の雰囲気を変えたいということですか?それとも機能を増やしたい、というニュアンスに近いですか?</div>
-    </div>
-    <div class="cta-row" style="margin-top:20px;justify-content:center;">
-      <a href="zoe-chat.html" class="btn btn-amber">まずはZoeと会話してみる →</a>
     </div>
   </section>
 
