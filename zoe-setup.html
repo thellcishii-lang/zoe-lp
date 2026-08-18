@@ -527,7 +527,25 @@ async function completeStage2Tool(){
 }
 async function publishTool(input){
   const productionUrl = `https://the-chatbot.com/zoe-production.html?id=${currentCustomer.id}`;
-  const ok = await updateCustomerRecord({ published: true, productionKnowledge: (input && input.knowledge) || '' });
+  const knowledge = (input && input.knowledge) || '';
+
+  // SMAS: 公開のたびに、重複整理+エージェント自動区切りをサーバー側で行う。
+  let productionAgents = null;
+  try{
+    const reorgRes = await fetch("https://thechatbot-proxy.vercel.app/api/reorganize-knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ knowledge })
+    });
+    if(reorgRes.ok){
+      const reorgData = await reorgRes.json();
+      productionAgents = reorgData.agents || null;
+    }
+  }catch(e){
+    // 整理に失敗しても、公開自体は従来通り(1本の知識のまま)進める
+  }
+
+  const ok = await updateCustomerRecord({ published: true, productionKnowledge: knowledge, productionAgents: productionAgents || undefined });
   renderStageButtons();
   if(!ok) return "記録に失敗しました。";
   try{
