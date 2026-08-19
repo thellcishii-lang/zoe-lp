@@ -133,6 +133,7 @@
   </header>
   <div id="chatNameBar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:6px 18px;border-bottom:1px solid var(--line);">
     <a href="https://the-chatbot.com/zoe-setup-manual.docx" target="_blank" style="color:var(--text-dim);font-size:12.5px;text-decoration:none;">取扱説明書</a>
+    <a href="https://the-chatbot.com/stage-flw.html" target="_blank" style="color:var(--text-dim);font-size:12.5px;text-decoration:none;">flow</a>
     <button id="chatNameChangeBtn" style="background:none;border:none;color:var(--text-dim);font-size:12.5px;cursor:pointer;padding:4px 6px;">チャット名変更</button>
   </div>
   <div id="chatArea"></div>
@@ -618,9 +619,6 @@ document.getElementById('chatNameChangeBtn').addEventListener('click', async () 
 });
 
 async function saveProgress(){
-  if(isAdminSession){
-    return; // admin入室中は、お客様自身の進捗記録を上書きしない(履歴として残さない)
-  }
   // これまでの会話をfaqDraftとしてそのまま保存しておく(簡易版:あとで整形して使う想定)
   const faqDraft = conversationHistory.map(m => {
     const speaker = m.role === 'user' ? 'お客様' : 'Zoe';
@@ -808,6 +806,9 @@ userInput.addEventListener('input', autoResize);
 const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 userInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter' && !e.shiftKey){
+    if(e.isComposing || e.keyCode === 229){
+      return; // IME変換確定のEnterは送信扱いにしない
+    }
     if(isTouchDevice){
       return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
     }
