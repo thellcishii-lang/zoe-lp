@@ -843,6 +843,12 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
   addFilesFromList(e.target.files);
 });
 
+// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまい、
+// それが入力欄でのドロップも巻き込んで妨げることがあるため、ページ全体で既定動作を止めておく
+['dragenter','dragover','drop'].forEach(evt => {
+  window.addEventListener(evt, (e) => { e.preventDefault(); });
+});
+
 const inputAreaEl = document.getElementById('inputArea');
 ['dragenter','dragover'].forEach(evt => {
   inputAreaEl.addEventListener(evt, (e) => {
@@ -868,9 +874,19 @@ function autoResize(){
 }
 userInput.addEventListener('input', autoResize);
 const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+// isComposingだけだと、環境によってEnterのタイミングで正しく取得できない場合があるため、
+// 変換の開始・終了を自前のフラグで管理する
+let isComposingIME = false;
+userInput.addEventListener('compositionstart', () => { isComposingIME = true; });
+userInput.addEventListener('compositionend', () => {
+  // compositionendとEnterのkeydownがほぼ同時に来る環境があるため、1フレーム遅らせて解除する
+  setTimeout(() => { isComposingIME = false; }, 0);
+});
+
 userInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter' && !e.shiftKey){
-    if(e.isComposing || e.keyCode === 229){
+    if(isComposingIME || e.isComposing || e.keyCode === 229){
       return; // IME変換確定のEnterは送信扱いにしない
     }
     if(isTouchDevice){
