@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ステージ1・ステージ2 ― Zoeの学習フロー</title>
+<style>
+  :root{
+    --ink:#12141c;
+    --ink-2:#1b1e29;
+    --paper:#eef0f4;
+    --amber:#c08a3e;
+    --amber-soft:#3a2f1c;
+    --teal:#4fa8a0;
+    --teal-soft:#16302e;
+    --line:#333850;
+    --muted:#8b90a3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif;
+    padding:40px 20px 60px;
+  }
+  .mono{font-family:'IBM Plex Mono','SF Mono',monospace; letter-spacing:0.02em;}
+  header{max-width:920px; margin:0 auto 44px; text-align:center;}
+  .eyebrow{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.18em; margin-bottom:14px;}
+  h1{font-size:clamp(24px,4vw,34px); line-height:1.4; margin:0 0 12px; font-weight:700;}
+  h1 span{color:var(--amber);}
+  .sub{color:var(--muted); font-size:15px; line-height:1.8; max-width:640px; margin:0 auto;}
+
+  .stage-wrap{max-width:1000px; margin:0 auto; display:flex; flex-direction:column; gap:36px;}
+
+  .stage-block{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:26px 24px 30px;
+  }
+  .stage-block.s1{border-top:3px solid var(--amber);}
+  .stage-block.s2{border-top:3px solid var(--teal);}
+
+  .stage-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .stage-head h2{font-size:20px; margin:0;}
+  .stage-block.s1 h2{color:var(--amber);}
+  .stage-block.s2 h2{color:var(--teal);}
+  .badge{
+    font-size:11px;
+    letter-spacing:0.1em;
+    padding:3px 10px;
+    border-radius:20px;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .badge.required{background:rgba(192,138,62,0.15); color:var(--amber); border:1px solid rgba(192,138,62,0.4);}
+  .badge.optional{background:rgba(79,168,160,0.15); color:var(--teal); border:1px solid rgba(79,168,160,0.4);}
+
+  .stage-desc{color:var(--muted); font-size:13px; line-height:1.8; margin-bottom:24px;}
+
+  .flow{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+  .step{
+    display:flex;
+    gap:14px;
+    position:relative;
+    padding-bottom:20px;
+  }
+  .step:last-child{padding-bottom:0;}
+  .step-line{
+    position:relative;
+    width:26px;
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .step-dot{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    font-family:'IBM Plex Mono',monospace;
+    flex-shrink:0;
+    z-index:1;
+  }
+  .stage-block.s1 .step-dot{background:var(--amber-soft); color:var(--amber); border:1px solid rgba(192,138,62,0.5);}
+  .stage-block.s2 .step-dot{background:var(--teal-soft); color:var(--teal); border:1px solid rgba(79,168,160,0.5);}
+  .step-connector{
+    position:absolute;
+    top:26px;
+    bottom:-20px;
+    width:1px;
+    background:var(--line);
+  }
+  .step:last-child .step-connector{display:none;}
+  .step-body{padding-top:2px;}
+  .step-title{font-size:14px; font-weight:600; margin-bottom:4px; color:var(--paper);}
+  .step-text{font-size:12.5px; color:var(--muted); line-height:1.75;}
+
+  .branch{
+    margin-top:8px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .branch-item{
+    font-size:12px;
+    padding:6px 10px;
+    border-radius:4px;
+    border:1px dashed var(--line);
+    color:var(--muted);
+  }
+  .stage-block.s1 .branch-item.mark{border-color:rgba(192,138,62,0.4); color:var(--amber);}
+
+  .loop-tag{
+    display:inline-block;
+    margin-top:6px;
+    font-size:10.5px;
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:2px 10px;
+  }
+
+  .arrow-between{
+    text-align:center;
+    color:var(--muted);
+    font-size:20px;
+    margin:-8px 0 -8px;
+  }
+
+  .caption{
+    max-width:1000px;
+    margin:32px auto 0;
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.9;
+  }
+  .caption b{color:var(--paper);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow mono">Knowledge Onboarding Flow</div>
+  <h1>知識を積み上げる、<span>2つの段階</span></h1>
+  <p class="sub">ステージ1で公開できる状態を作り、ステージ2で「よくできる社員」の深さまで育てる。</p>
+</header>
+
+<div class="stage-wrap">
+
+  <!-- Stage 1 -->
+  <div class="stage-block s1">
+    <div class="stage-head">
+      <h2>ステージ1 ― 基本のFAQを作る</h2>
+      <span class="badge required mono">必須</span>
+    </div>
+    <div class="stage-desc">公開に必要な最低限の理解を、対話とすり合わせで固めていく段階</div>
+
+    <div class="flow">
+      <div class="step">
+        <div class="step-line"><div class="step-dot">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">商品・サービスを聞く</div>
+          <div class="step-text">点数が少なければ会話で。多い場合は販売ページのURL、または画像・PDFで一覧を送ってもらう</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">FAQの叩き台を作成・提示</div>
+          <div class="step-text">聞いた内容から、よくある質問と回答の初版をZoeが組み立てる</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">お客様が精査・修正</div>
+          <div class="step-text">追加・削除・訂正を反映し、実情に合わせてすり合わせる</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">不明点をリストアップ</div>
+          <div class="step-text">Zoeが理解できていない点を洗い出す</div>
+          <div class="branch">
+            <div class="branch-item mark">5件以内 → その場でチャットで確認</div>
+            <div class="branch-item mark">6件以上 → メールで確認シートを送付</div>
+          </div>
+          <span class="loop-tag">↻ 解決するまで3〜4を繰り返す</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">5</div></div>
+        <div class="step-body">
+          <div class="step-title">不明点ゼロ → ステージ1完了</div>
+          <div class="step-text">これで最低限の公開が可能な状態になる</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-between">↓</div>
+
+  <!-- Stage 2 -->
+  <div class="stage-block s2">
+    <div class="stage-head">
+      <h2>ステージ2 ― 深掘りして育てる</h2>
+      <span class="badge optional mono">任意</span>
+    </div>
+    <div class="stage-desc">今度はZoe自身が質問を重ね、社員に知識を叩き込むように理解を深めていく段階</div>
+
+    <div class="flow">
+      <div class="step">
+        <div class="step-line"><div class="step-dot">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">お客様の合図で開始</div>
+          <div class="step-text">「準備はよろしいですか」と確認してからスタート</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">Zoeが次々と質問する</div>
+          <div class="step-text">商品数が多い場合は、併売・比較・組み合わせなど商品同士の関連にも踏み込む</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-title">いつでも中断できる</div>
+          <div class="step-text">その時点までの内容を保存し、後から再開できる</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line"><div class="step-dot">4</div></div>
+        <div class="step-body">
+          <div class="step-title">質問が尽きたらステージ2完了</div>
+          <div class="step-text">内容が重複してきたタイミングで終了を提案し、確認の上で完了</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="caption">ステージ1は「公開できる最低限」を、ステージ2は「深さ」を作る。<br>両方合わせて、<b>会話しながら知識を育てていく</b>設計。</p>
+
+</body>
+</html>
