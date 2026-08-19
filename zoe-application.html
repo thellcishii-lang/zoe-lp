@@ -807,6 +807,9 @@ userInput.addEventListener('input', autoResize);
 const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 userInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter' && !e.shiftKey){
+    if(e.isComposing || e.keyCode === 229){
+      return; // IME変換確定のEnterは送信扱いにしない
+    }
     if(isTouchDevice){
       return; // スマホ等では、Enterは改行のみ。送信は送信ボタンで行う
     }
