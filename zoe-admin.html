@@ -43,6 +43,11 @@
   .file-chip .name{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .file-chip .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 2px;flex-shrink:0;}
   #secInputRow.drag-over{outline:2px dashed var(--accent);outline-offset:-4px;background:rgba(74,144,226,0.06);}
+  .sec-typing{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px;padding:14px 16px;}
+  .sec-typing .d{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:secBounce 1.2s infinite ease-in-out;}
+  .sec-typing .d:nth-child(2){animation-delay:0.15s;}
+  .sec-typing .d:nth-child(3){animation-delay:0.3s;}
+  @keyframes secBounce{0%,60%,100%{transform:translateY(0);opacity:0.5;}30%{transform:translateY(-4px);opacity:1;}}
 </style>
 </head>
 <body>
@@ -322,6 +327,20 @@ function addSecMessage(role, text){
   area.scrollTop = area.scrollHeight;
 }
 
+function showSecTyping(){
+  const div = document.createElement('div');
+  div.className = 'sec-typing';
+  div.id = 'secTypingIndicator';
+  div.innerHTML = '<div class="d"></div><div class="d"></div><div class="d"></div>';
+  const area = document.getElementById('secChatArea');
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+function hideSecTyping(){
+  const el = document.getElementById('secTypingIndicator');
+  if(el) el.remove();
+}
+
 // --- ファイル添付(画像・PDF・テキスト・Word・Excel、複数可) ---
 let secAttachedFiles = []; // [{ name, mediaType, base64, kind: 'image'|'document'|'text', text? }]
 
@@ -447,12 +466,14 @@ async function sendSecretaryMessage(){
   }
 
   try{
+    showSecTyping();
     const sessionToken = sessionStorage.getItem('adminSessionToken');
     const res = await fetch(SECRETARY_CHAT_ENDPOINT, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ mode: 'secretary', sessionToken, messages: secretaryConversation })
     });
     const data = await res.json();
+    hideSecTyping();
     if(!res.ok){
       addSecMessage('bot', 'エラー: ' + (data.error || '不明なエラー'));
       sendBtn.disabled = false;
@@ -489,6 +510,7 @@ async function sendSecretaryMessage(){
     });
     secretaryConversation.push({ role: 'assistant', content: data.reply });
   }catch(e){
+    hideSecTyping();
     addSecMessage('bot', '通信エラーが発生しました: ' + e.message);
   }
   sendBtn.disabled = false;
