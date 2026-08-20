@@ -253,7 +253,9 @@ async function callZoe(messages){
       const toolResultBlocks = [];
       for(const block of toolUseBlocks){
         let toolResultText;
-        if(block.name === 'send_email'){
+        if(block.name === 'get_current_status'){
+          toolResultText = await getCurrentStatusTool();
+        } else if(block.name === 'send_email'){
           toolResultText = await sendEmailTool(block.input);
         } else if(block.name === 'send_questions_file'){
           toolResultText = await sendQuestionsFileTool(block.input);
@@ -527,6 +529,31 @@ async function completeStage2Tool(){
   renderStageButtons();
   return ok ? "ステージ2を完了として記録しました。" : "記録に失敗しました。";
 }
+async function getCurrentStatusTool(){
+  try{
+    const res = await fetch(CUSTOMER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: 'check', id: currentCustomer.id })
+    });
+    const data = await res.json();
+    if(!res.ok) return "現在の状態の取得に失敗しました。";
+    const agents = data.productionAgents || [];
+    const agentsText = agents.length > 0
+      ? agents.map(a => `- ${a.number}番: ${(a.topics || []).join('、') || '(見出しなし)'}(${(a.content || '').length}文字)`).join('\n')
+      : "(まだ複数エージェントへの分割は発生していません。知識量が少ないか、公開がまだ行われていません)";
+    return JSON.stringify({
+      published: !!data.published,
+      stage1Complete: !!data.stage1Complete,
+      stage2Complete: !!data.stage2Complete,
+      productionKnowledge: data.productionKnowledge || "(まだ公開された知識がありません)",
+      productionAgentsSummary: agentsText,
+    });
+  }catch(e){
+    return "現在の状態の取得中にエラーが発生しました: " + e.message;
+  }
+}
+
 async function publishTool(input){
   const productionUrl = `https://the-chatbot.com/zoe-production.html?id=${currentCustomer.id}`;
   const knowledge = (input && input.knowledge) || '';
@@ -843,10 +870,14 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
   addFilesFromList(e.target.files);
 });
 
-// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまい、
-// それが入力欄でのドロップも巻き込んで妨げることがあるため、ページ全体で既定動作を止めておく
+// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
+// 入力欄の外側だけ既定動作を止めておく(入力欄自体のドロップ処理を邪魔しないように)
 ['dragenter','dragover','drop'].forEach(evt => {
-  window.addEventListener(evt, (e) => { e.preventDefault(); });
+  window.addEventListener(evt, (e) => {
+    if(!document.getElementById('inputArea').contains(e.target)){
+      e.preventDefault();
+    }
+  });
 });
 
 const inputAreaEl = document.getElementById('inputArea');
