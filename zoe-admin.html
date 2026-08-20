@@ -407,9 +407,14 @@ secInputRowEl.addEventListener('drop', (e) => {
     addSecFilesFromList(e.dataTransfer.files);
   }
 });
-// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、ページ全体で止めておく
+// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
+// 入力欄の外側だけ既定動作を止めておく(入力欄自体のドロップ処理を邪魔しないように)
 ['dragenter','dragover','drop'].forEach(evt => {
-  window.addEventListener(evt, (e) => { e.preventDefault(); });
+  window.addEventListener(evt, (e) => {
+    if(!document.getElementById('secInputRow').contains(e.target)){
+      e.preventDefault();
+    }
+  });
 });
 
 async function sendSecretaryMessage(){
