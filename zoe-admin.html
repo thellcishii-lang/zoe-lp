@@ -417,11 +417,12 @@ document.getElementById('secFileInput').addEventListener('change', (e) => {
 const secInputRowEl = document.getElementById('secInputRow');
 const secInputEl = document.getElementById('secInput');
 
+// キャプチャリングフェーズで登録（子要素より先に親要素で捕捉）
 ['dragenter','dragover'].forEach(evt => {
   secInputRowEl.addEventListener(evt, (e) => { 
     e.preventDefault(); 
     secInputRowEl.classList.add('drag-over'); 
-  }, true); // ← true を追加
+  }, true);
 });
 
 secInputRowEl.addEventListener('dragleave', (e) => { 
@@ -431,22 +432,20 @@ secInputRowEl.addEventListener('dragleave', (e) => {
 
 secInputRowEl.addEventListener('drop', (e) => {
   e.preventDefault();
-  e.stopPropagation(); // ← 追加：子要素に伝播しない
+  e.stopPropagation();
   secInputRowEl.classList.remove('drag-over');
   if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
     addSecFilesFromList(e.dataTransfer.files);
   }
 }, true);
 
-// textareaのデフォルトのドラッグ＆ドロップ動作を無効化
-['dragenter','dragover','drop'].forEach(evt => {
-  secInputEl.addEventListener(evt, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  });
+// textareaのデフォルトドラッグ動作を無効化（親のキャプチャリングリスナーが動作するように）
+['dragenter','dragover','dragleave','drop'].forEach(evt => {
+  secInputEl.addEventListener(evt, (e) => { e.preventDefault(); });
 });
+
 // ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
-// 入力欄の外側だけ既定動作を止めておく(入力欄自体のドロップ処理を邪魔しないように)
+// 入力欄の外側だけ既定動作を止めておく
 ['dragenter','dragover','drop'].forEach(evt => {
   window.addEventListener(evt, (e) => {
     if(!document.getElementById('secInputRow').contains(e.target)){
