@@ -418,10 +418,10 @@ const secInputRowEl = document.getElementById('secInputRow');
 ['dragenter','dragover'].forEach(evt => {
   secInputRowEl.addEventListener(evt, (e) => { e.preventDefault(); secInputRowEl.classList.add('drag-over'); });
 });
-['dragleave','drop'].forEach(evt => {
-  secInputRowEl.addEventListener(evt, (e) => { e.preventDefault(); secInputRowEl.classList.remove('drag-over'); });
-});
+secInputRowEl.addEventListener('dragleave', (e) => { e.preventDefault(); secInputRowEl.classList.remove('drag-over'); });
 secInputRowEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  secInputRowEl.classList.remove('drag-over');
   if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
     addSecFilesFromList(e.dataTransfer.files);
   }
@@ -445,7 +445,8 @@ async function sendSecretaryMessage(){
   input.value = '';
 
   const fileNames = secAttachedFiles.map(f => `📎 ${f.name}`).join(' ');
-  addSecMessage('user', text || fileNames);
+const displayText = [fileNames, text].filter(Boolean).join(' ');
+addSecMessage('user', displayText);
 
   if(secAttachedFiles.length > 0){
     const contentBlocks = [];
