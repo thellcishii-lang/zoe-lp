@@ -417,19 +417,17 @@ document.getElementById('secFileInput').addEventListener('change', (e) => {
 const secInputRowEl = document.getElementById('secInputRow');
 const secInputEl = document.getElementById('secInput');
 
-// キャプチャリングフェーズで登録（子要素より先に親要素で捕捉）
+// secInputRow に登録（padding領域用）
 ['dragenter','dragover'].forEach(evt => {
   secInputRowEl.addEventListener(evt, (e) => { 
     e.preventDefault(); 
     secInputRowEl.classList.add('drag-over'); 
   }, true);
 });
-
 secInputRowEl.addEventListener('dragleave', (e) => { 
   e.preventDefault(); 
   secInputRowEl.classList.remove('drag-over'); 
 }, true);
-
 secInputRowEl.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -439,9 +437,23 @@ secInputRowEl.addEventListener('drop', (e) => {
   }
 }, true);
 
-// textareaのデフォルトドラッグ動作を無効化（親のキャプチャリングリスナーが動作するように）
-['dragenter','dragover','dragleave','drop'].forEach(evt => {
-  secInputEl.addEventListener(evt, (e) => { e.preventDefault(); });
+// secInput textarea にも登録（textarea上のドロップ用）
+['dragenter','dragover'].forEach(evt => {
+  secInputEl.addEventListener(evt, (e) => { 
+    e.preventDefault(); 
+    secInputRowEl.classList.add('drag-over'); 
+  });
+});
+secInputEl.addEventListener('dragleave', (e) => { 
+  e.preventDefault(); 
+  secInputRowEl.classList.remove('drag-over'); 
+});
+secInputEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  secInputRowEl.classList.remove('drag-over');
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
+    addSecFilesFromList(e.dataTransfer.files);
+  }
 });
 
 // ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
