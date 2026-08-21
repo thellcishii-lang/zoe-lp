@@ -42,7 +42,7 @@
   .file-chip{display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--text-dim);max-width:220px;}
   .file-chip .name{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .file-chip .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 2px;flex-shrink:0;}
-  #secInputRow.drag-over{outline:2px dashed var(--accent);outline-offset:-4px;background:rgba(74,144,226,0.06);}
+  #secInputRow.drag-over{border-color: var(--accent);background:rgba(74,144,226,0.08);box-shadow: 0 0 0 4px rgba(74,144,226,0.15);}
   .sec-typing{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px;padding:14px 16px;}
   .sec-typing .d{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:secBounce 1.2s infinite ease-in-out;}
   .sec-typing .d:nth-child(2){animation-delay:0.15s;}
@@ -79,7 +79,7 @@
     <div id="secChatArea" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;"></div>
     <div style="padding:14px 18px;border-top:1px solid var(--line);">
       <div id="secFilePreview" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
-      <div id="secInputRow" style="display:flex;gap:10px;">
+      <div id="secInputRow" style="display:flex;gap:10px;padding:16px;margin:-16px;border:2px dashed transparent;border-radius:14px;transition:all 0.2s;">
         <button id="secAttachBtn" title="画像・PDF・テキスト等を添付(複数選択・ドラッグ&amp;ドロップ可)" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);border-radius:10px;padding:0 16px;font-size:18px;cursor:pointer;flex-shrink:0;">📎</button>
         <input type="file" id="secFileInput" accept=".pdf,image/*,.txt,.csv,.docx,.xlsx" multiple style="display:none;">
         <textarea id="secInput" rows="1" placeholder="秘書Zoeにメッセージ..." style="flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:12px 14px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14.5px;outline:none;resize:none;"></textarea>
