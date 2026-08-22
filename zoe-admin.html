@@ -43,6 +43,9 @@
   .file-chip .name{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .file-chip .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 2px;flex-shrink:0;}
   #secInputRow.drag-over{outline:2px dashed var(--accent);outline-offset:-4px;background:rgba(74,144,226,0.06);}
+.drag-overlay{display:none;position:absolute;inset:0;background:rgba(15,16,20,0.75);backdrop-filter:blur(2px);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:16px;border-radius:12px;pointer-events:auto;}
+.drag-overlay .icon{font-size:56px;opacity:0.9;}
+.drag-overlay .text{font-size:17px;font-weight:600;color:var(--accent);letter-spacing:0.5px;}
 #secMessages.drag-over{background:rgba(74,144,226,0.05);outline:2px dashed var(--accent);outline-offset:-4px;}
 #secMessages.drag-over{background:rgba(74,144,226,0.05);outline:2px dashed var(--accent);outline-offset:-4px;}
   .sec-typing{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px;padding:14px 16px;}
@@ -74,7 +77,11 @@
 </div>
 
 <div id="chatScreen">
-  <div style="max-width:720px;margin:0 auto;height:100vh;display:flex;flex-direction:column;">
+  <div style="max-width:720px;margin:0 auto;height:100vh;display:flex;flex-direction:column;position:relative;">
+    <div id="secDragOverlay" class="drag-overlay">
+      <div class="icon">📎</div>
+      <div class="text">ファイルをここにドロップ</div>
+    </div>
     <div style="padding:14px 18px;border-bottom:1px solid var(--line);">
       <div style="font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;">秘書Zoe</div>
     </div>
@@ -455,14 +462,31 @@ secMessagesEl.addEventListener('drop', (e) => {
   }
 });
 
-// ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
-// 入力欄の外側だけ既定動作を止めておく(入力欄自体のドロップ処理を邪魔しないように)
-['dragenter','dragover','drop'].forEach(evt => {
-  window.addEventListener(evt, (e) => {
-    if(!document.getElementById('secInputRow').contains(e.target) && !document.getElementById('secMessages').contains(e.target)){
-      e.preventDefault();
-    }
-  });
+// === オーバーレイ方式のドラッグ＆ドロップ ===
+const secDragOverlay = document.getElementById('secDragOverlay');
+
+window.addEventListener('dragenter', (e) => {
+  if(e.dataTransfer && e.dataTransfer.types.includes('Files')){
+    secDragOverlay.style.display = 'flex';
+  }
+});
+
+secDragOverlay.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+secDragOverlay.addEventListener('dragleave', (e) => {
+  if(e.target === secDragOverlay){
+    secDragOverlay.style.display = 'none';
+  }
+});
+
+secDragOverlay.addEventListener('drop', (e) => {
+  e.preventDefault();
+  secDragOverlay.style.display = 'none';
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
+    addSecFilesFromList(e.dataTransfer.files);
+  }
 });
 
 async function sendSecretaryMessage(){
