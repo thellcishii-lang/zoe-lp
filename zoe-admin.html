@@ -44,6 +44,7 @@
   .file-chip .remove{cursor:pointer;color:#ff6b6b;font-weight:700;padding:0 2px;flex-shrink:0;}
   #secInputRow.drag-over{outline:2px dashed var(--accent);outline-offset:-4px;background:rgba(74,144,226,0.06);}
 #secMessages.drag-over{background:rgba(74,144,226,0.05);outline:2px dashed var(--accent);outline-offset:-4px;}
+#secMessages.drag-over{background:rgba(74,144,226,0.05);outline:2px dashed var(--accent);outline-offset:-4px;}
   .sec-typing{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px;padding:14px 16px;}
   .sec-typing .d{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:secBounce 1.2s infinite ease-in-out;}
   .sec-typing .d:nth-child(2){animation-delay:0.15s;}
@@ -427,11 +428,38 @@ secInputRowEl.addEventListener('drop', (e) => {
     addSecFilesFromList(e.dataTransfer.files);
   }
 });
+
+// === secMessages（チャット履歴エリア）へのドラッグ＆ドロップ ===
+const secMessagesEl = document.getElementById('secMessages');
+
+secMessagesEl.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  secMessagesEl.classList.add('drag-over');
+});
+
+secMessagesEl.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+secMessagesEl.addEventListener('dragleave', (e) => {
+  if (!secMessagesEl.contains(e.relatedTarget)) {
+    secMessagesEl.classList.remove('drag-over');
+  }
+});
+
+secMessagesEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  secMessagesEl.classList.remove('drag-over');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    addSecFilesFromList(e.dataTransfer.files);
+  }
+});
+
 // ブラウザ既定では、入力欄の外でファイルをドロップするとページごと開こうとしてしまうため、
 // 入力欄の外側だけ既定動作を止めておく(入力欄自体のドロップ処理を邪魔しないように)
 ['dragenter','dragover','drop'].forEach(evt => {
   window.addEventListener(evt, (e) => {
-    if(!document.getElementById('secInputRow').contains(e.target)){
+    if(!document.getElementById('secInputRow').contains(e.target) && !document.getElementById('secMessages').contains(e.target)){
       e.preventDefault();
     }
   });
